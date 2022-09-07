@@ -23,6 +23,7 @@
 
 //macros to be used by all .c files
 #define SHM_NAME "/appshm"
+#define SEM_NAME "/sem"
 #define SHM_SIZE 256
 #define MAX_BUFF 128
 #define MD5_LENGTH 32

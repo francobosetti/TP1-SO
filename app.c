@@ -52,6 +52,9 @@ int main(int argc, char *argv[]){
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
 
+    //Creating the semaphore 
+    
+
     //Creating the shared memory segment
     int fdParent = shm_open(SHM_NAME, O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
     if(fdParent == -1)

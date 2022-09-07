@@ -18,6 +18,7 @@ int main(int argc, char *argv[]){
     while(...){
         if(sem_wait(semaphore)== ERROR)
             errExit("error at sempahore waiting");
-        
+        printf("File name:%s, md5sum: %s, SlavePID: %d", (buff+offset)->fileName,(buff+offset)->md5, (buff+offset)->pidSlave);
+        offset+=DATA_SIZE;
     }
 }

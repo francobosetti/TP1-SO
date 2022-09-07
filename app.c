@@ -53,7 +53,9 @@ int main(int argc, char *argv[]){
         errExit("Application process did not recieve enough arguments");
 
     //Creating the semaphore 
-    
+    sem_t * semaphore= sem_open(SEM_NAME, O_CREAT | O_EXCL, S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 1);
+    if(semaphore== SEM_FAILED)
+        errExit("could not create semaphore");
 
     //Creating the shared memory segment
     int fdParent = shm_open(SHM_NAME, O_CREAT|O_RDWR, S_IRUSR|S_IWUSR);
@@ -69,6 +71,9 @@ int main(int argc, char *argv[]){
 
     //Circular vector to be used by multiple processes
     data * buff = (data *) shmPointer;
+
+    sleep(2);   //todo la consigna dice Cuando inicia, DEBE esperar 2 segundos a que aparezca un 
+                //proceso vista, si lo hace le comparte el buffer de llegada.
 
     //vector de comunicacion para pipes
     slaveComm communications[NUM_CHILDS];
@@ -116,6 +121,8 @@ int main(int argc, char *argv[]){
                 if (read(communications[i].slaveToMasterFd[READPOS], &(buff[filesProcessed]), DATA_SIZE) == ERROR)
                     errExit("Error al leer del pipe slaveToMaster");
                 filesProcessed++;
+                if(sem_post(semaphore)==ERROR)
+                    errExit("could not execute sem_post");
                 queueIfFile(argv, communications[i], &currentFile);
             }
         }

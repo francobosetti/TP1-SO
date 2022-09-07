@@ -27,7 +27,7 @@ int main(void){
         //entonces concateno direccion y comando con sprintf
         sprintf(buffer,"md5sum %s",d.fileName);
 
-        File * f = popen(buffer,"r");
+        FILE * f = popen(buffer,"r");
         if ( f == NULL )
             errExit("Error while using popen from slave");
 

@@ -1,18 +1,32 @@
-#include "includes.h"
 #include "lib.h"
 
+#define TRANSFERSIZE 64
 
-void prepareData(data * d,char * buffer){
-    for ( int i = 0 ; buffer[i] != 0 && buffer[i] != ' ' ; i++){
-        d->md5[i] = buffer[i];
+//master --> "nombreArchivo\n"
+
+//slave --> "hash,nombreArchivo,slavePid\n"
+void prepareData(char *buffer, char * fileName){
+    char aux[TRANSFERSIZE];
+    //copiamos el hash
+    int i;
+    for ( i = 0; buffer[i] != ' '; i++){
+        aux[i] = buffer[i];
     }
+    aux[i] = 0;
+
+    //reemplazamos la newline recibida con fgets en el nombre de archivo
+    sprintf(buffer,"%s,%s,%d\n",aux, fileName, getpid());
+
 }
 
-void sendDataToMaster(data * d, int writeFd){
-    pid_t myPid = getpid();
-    //TOOD manejo de error del pid
-    d->pidSlave = myPid;
-    write(writeFd, &d, DATA_SIZE);
+void replaceNewLine(char * str){
+    int foundNewLine = false;
+    for (int i = 0; !foundNewLine && str[i] != 0 ; i++){
+        if (str[i] == '\n'){
+            foundNewLine = 1;
+            str[i] = true;
+        }
+    }
 }
 
 int main(void){
@@ -21,24 +35,22 @@ int main(void){
         perror("setvbuf failed/n");
     }
 
-    data d;
+    //hash  nombreaArchivo --> hash,nombre,pid\n
+
+    char entry[TRANSFERSIZE];
     char buffer[MAX_BUFF];
-    while ( read(STDIN_FILENO,&d, DATA_SIZE) != FINISHREADING){
-        //entonces concateno direccion y comando con sprintf
-        sprintf(buffer,"md5sum %s",d.fileName);
-
-        FILE * f = popen(buffer,"r");
-        if ( f == NULL )
-            errExit("Error while using popen from slave");
-
-        //ver posibles errores con fgets
-        fgets(buffer,MAX_BUFF,f);
-        prepareData(&d, buffer);
-        sendDataToMaster(&d,STDOUT_FILENO);
-        int closeVal = pclose(f);
-        if (pclose == ERROR)
-            errExit("a problem occured while closing md5sum command");
-        
+    while ( fgets(entry,TRANSFERSIZE,stdin) != NULL ){
+        //el buffer termina con \n
+        replaceNewLine(entry);
+        sprintf(buffer,"md5sum %s",entry);
+        FILE * md5Ptr = popen(buffer,"r");
+        if (md5Ptr == NULL)
+            errExit("Error calculating hash");
+        fgets(buffer,MAX_BUFF,md5Ptr);
+        pclose(md5Ptr);
+        prepareData(buffer, entry);
+        write(STDOUT_FILENO,buffer, strlen(buffer));
     }
 
+    return 0;
 }

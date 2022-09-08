@@ -1,10 +1,40 @@
 #ifndef TP1_SO_LIB_H
 #define TP1_SO_LIB_H
 
-#define ERROR -1
+//Here there will be all the libraries needed for all the files
+#define _BSD_SOURCE
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdbool.h>
+
+//libraries for semaphores
+#include <semaphore.h>
+#include <sys/wait.h>
+#include <signal.h>
+
+//libraries for shared memory
+#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>           /* For O_* constants */
+#include <sys/types.h>
+#include <sys/mman.h>
+
+//libraries for select
+#include <sys/select.h>
+
+//macros to be used by all .c files
+
+#define MAX_BUFF 4096
+#define MD5_LENGTH 32
+#define TRANSFERSIZE 64
+#define PIPESIZE 2
+#define READPOS 0
+#define WRITEPOS 1
+#define FINISHREADING 0
+#define ERROR (-1)
 
 void errExit(char * msg);
-
-
 
 #endif //TP1_SO_LIB_H

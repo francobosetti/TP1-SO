@@ -1,6 +1,26 @@
 #include "lib.h"
 #include "shmADT.h"
 
+int getCantDigits(int n){
+    int count = 0;
+    do {
+        n /= 10;
+        ++count;
+    } while (n != 0);
+    return count;
+}
+
+void getDataFromSHM(char * shmPtr, char* md5, char* fileName, int * pid){
+    for (int i = 0; PARSER(data->shmPtr[data->currentPos]); ++i, (data->currentPos)++)
+        md5[i] = data->shmPtr[data->currentPos];
+
+    for (int i = 0; PARSER(data->shmPtr[data->currentPos]); ++i, (data->currentPos)++)
+        fileName[i] = data->shmPtr[data->currentPos];
+
+    (*pid) = atoi(data->shmPtr+data->currentPos);
+    data->currentPos += getCantDigits(*pid);
+}
+
 // Hash: ... | Nombre: ... | Slave PID: ...\n
 int main(int argc, char *argv[]){
     //todo tema recibir los datos de la shm

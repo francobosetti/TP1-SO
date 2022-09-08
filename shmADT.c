@@ -1,6 +1,8 @@
 #include "lib.h"
 #include "shmADT.h"
 
+#define PARSER(n) ((n) != ',' && (n) != '\n')
+
 struct shmCDT{
     sem_t *mutexSem;
     int shmFd;
@@ -10,26 +12,6 @@ struct shmCDT{
     char *shmPtr;
     char *semName;
 };
-
-int shmWriter(char *buff, shmADT data){
-    int size=strlen(buff);
-
-    if((data->currentPos + size + 1) >= data->shmSize)
-        return -1;
-
-    for (int i = 0; i < size; i++)
-        data->shmPtr[(data->currentPos)++] = buff[i];
-
-    data->shmPtr[(data->currentPos)++]='\n';
-
-    return 0;
-}
-
-void getDataFromSHM(shmADT data, char* md5, char* fileName, int * pid){
-    for (int i = 0; i < ; ++i) {
-
-    }
-}
 
 shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     shmADT sharedData = malloc(sizeof(struct shmCDT));
@@ -85,15 +67,24 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
         errExit("could not create semaphore");
     }
     return sharedData;
-
 }
 
-sem_t *getSem(shmADT data){
-    return data->mutexSem;
+int shmWriter(shmADT data, char * buff){
+    int size=strlen(buff);
+
+    if((data->currentPos + size + 1) >= data->shmSize)
+        return -1;
+
+    for (int i = 0; i < size; i++)
+        data->shmPtr[(data->currentPos)++] = buff[i];
+
+    data->shmPtr[(data->currentPos)++]='\n';
+
+    return 0;
 }
 
-char *getShmPtr(shmADT data){
-    return data->shmPtr;
+int shmReader(shmADT data, char * buff){
+
 }
 
 void unlinkData(shmADT data){

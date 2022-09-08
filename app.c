@@ -98,23 +98,23 @@ int main(int argc, char *argv[]){
 
     //primero se cargan todos los programas posibles en los hijos
     int currentFile=1;
-    for (int i=0; argv[currentFile]!=NULL && i<NUM_CHILDS; i++ ) {
+    for (int i=0; argv[currentFile]!=NULL && i<NUM_CHILDS; i++) {
         for (int j = 0; j < MAX_TASK_PER_CHILD && argv[currentFile]!=NULL; ++j)
             queueIfFile(argv, communications[i], &currentFile);
     }
 
     //el primer argumento es el nombre del programa
-    for (int filesProcessed=0; argv[currentFile] != NULL && filesProcessed < SHM_SIZE; )   {
+    for (int filesProcessed=0; filesProcessed < SHM_SIZE; ){
         fd_set set = createSet(communications);
 
-        if(select(NUM_CHILDS, &set, NULL, NULL,NULL)!= ERROR)
+        if(select(NUM_CHILDS + 1, &set, NULL, NULL,NULL)!= ERROR)
             errExit("Failed when using select");
         //Check which fd is ready
         for (int i = 0; i < NUM_CHILDS; i++) {
             if(FD_ISSET(communications[i].slaveToMasterFd[READPOS], &set)){
                 char buffer[MAX_SLAVE_OUTPUT];
                 getData(buffer, communications[i].slaveToMasterFd[READPOS]);
-                shmWriter(buffer, shareData);
+                shmWriter(shareData, buffer);
                 filesProcessed++;
                 if(sem_post(getSem(shareData))==ERROR)
                     errExit("could not execute sem_post");
@@ -122,5 +122,5 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    
+
 }

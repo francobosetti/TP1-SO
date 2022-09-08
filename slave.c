@@ -23,8 +23,8 @@ void replaceNewLine(char * str){
     int foundNewLine = false;
     for (int i = 0; !foundNewLine && str[i] != 0 ; i++){
         if (str[i] == '\n'){
-            foundNewLine = 1;
-            str[i] = true;
+            foundNewLine = true;
+            str[i] = 0;
         }
     }
 }

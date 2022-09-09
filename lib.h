@@ -10,17 +10,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-//libraries for semaphores
-#include <semaphore.h>
-#include <sys/wait.h>
-#include <signal.h>
-
-//libraries for shared memory
-#include <sys/stat.h>        /* For mode constants */
-#include <fcntl.h>           /* For O_* constants */
-#include <sys/types.h>
-#include <sys/mman.h>
-
 //libraries for select
 #include <sys/select.h>
 

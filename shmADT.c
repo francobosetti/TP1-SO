@@ -1,4 +1,7 @@
-#include "lib.h"
+//TODO manejo de errores sin exit, utilizar valores de retorno y errno.h
+// https://www.thegeekstuff.com/2010/10/linux-error-codes/ --> setear errExits con valores de ERRNO correspondientes
+// y devolver null en caso de error
+
 #include "shmADT.h"
 
 #define PARSER(n) ((n) != ',' && (n) != '\n')
@@ -42,7 +45,6 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
         errExit("could not create semaphore");
     }
     return sharedData;
-
 }
 
 shmADT openSharedData(char * shmName, char * semName, int shmSize) {
@@ -69,24 +71,53 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     return sharedData;
 }
 
+// Returns a negative value if an error was encountered, app must handle it
 int shmWriter(shmADT data, char * buff){
+    if(data == NULL || buff == NULL)
+        return -1; //App hara el manejo de error
+
+    int bytesWritten;
+
+    bytesWritten = sprintf(&(data->shmPtr[data->currentPos]), "%s", buff);
+
+    if(bytesWritten > 0)
+        data->currentPos += bytesWritten + 1;
+
+    return bytesWritten;
+
+    /*
     int size=strlen(buff);
 
     if((data->currentPos + size + 1) >= data->shmSize)
         return -1;
+
 
     for (int i = 0; i < size; i++)
         data->shmPtr[(data->currentPos)++] = buff[i];
 
     data->shmPtr[(data->currentPos)++]='\n';
 
-    return 0;
+     return 0;
+     */
+
 }
 
+//Returns qty of bytes read, error handling must be done by calling process
 int shmReader(shmADT data, char * buff){
+    if(data == NULL || buff == NULL)
+        return -1; //App hara el manejo de error
 
+    int bytesRead;
+
+    bytesRead = sprintf(buff, "%s", &(data->shmPtr[data->currentPos]));
+
+    if(bytesRead > 0)
+        data->currentPos += bytesRead + 1;
+
+    return bytesRead;
 }
 
+//todo cambiar exit
 void unlinkData(shmADT data){
     if(munmap(data->shmPtr, SHM_SIZE)<0){
         errExit("Error executing munmap");
@@ -103,6 +134,7 @@ void unlinkData(shmADT data){
     free(data);
 }
 
+//todo cambiar exit
 void closeData(shmADT data){
     if(sem_close(data->mutexSem) == -1){
         errExit("Error executing sem_close");

@@ -21,50 +21,56 @@ int isReg(const char* fileName){
     return S_ISREG(path.st_mode);
 }
 
-fd_set createSet(slaveComm *comms){
-    fd_set readSet;
-    FD_ZERO(&readSet);
-    for (int i = 0; i < NUM_CHILDS; ++i)
-        FD_SET(comms[i].slaveToMasterFd[READPOS], &readSet);
-    return readSet;
+void createSetAndMaxFd(slaveComm *comms, fd_set * set, int * maxFd){
+    FD_ZERO(set);
+    *maxFd = comms[0].slaveToMasterFd[READPOS];
+    for (int i = 0; i < NUM_CHILDS; ++i){
+        FD_SET(comms[i].slaveToMasterFd[READPOS], set);
+
+        if(comms[i].slaveToMasterFd[READPOS] > *maxFd)
+            *maxFd = comms[i].slaveToMasterFd[READPOS];
+    }
 }
 
-void sendTask(slaveComm comm, char * fileName){
-    if(write(comm.masterToSlaveFd[WRITEPOS], fileName, strlen(fileName)) == ERROR)
+void sendTask(slaveComm *comm, char * file){
+    if(write(comm->masterToSlaveFd[WRITEPOS], file, strlen(file)) == ERROR)
         errExit("Failed at writing on child pipe from master");
 }
 
-void queueIfFile(char * argv[], slaveComm comm, int * currentFile){
-    bool taskSent = false;
-    while(argv[*currentFile] != NULL && !taskSent){
-        if(isReg(argv[*currentFile])) {
-            //tiene que ir con newline "\n"
-            char aux[TRANSFERSIZE];
-            sprintf(aux,"%s\n",argv[*currentFile]);
-            sendTask(comm, aux);
-            taskSent = true;
-        }
-        (*currentFile)++;
-    }
+void queueIfFile(char * fileName, slaveComm * comm){
+    if ( !isReg(fileName) )
+        return;
+    //si el archivo es regular lo mandamos
+
+    char aux[TRANSFERSIZE];
+    sprintf(aux,"%s\n",fileName);
+    sendTask(comm,aux);
 }
 
 void getData(char * buffer, int fd){
     char c;
-    for (int i = 0; i < MAX_SLAVE_OUTPUT && read(fd, &c, 1) > 0; ++i)
+    bool foundNewLine = false;
+    int i;
+    for (i = 0; !foundNewLine && read(fd, &c, 1) > 0; ++i){
         buffer[i] = c;
+        if ( c == '\n')
+            foundNewLine = true;
+    }
+    buffer[i] = 0;
 }
 
 int main(int argc, char *argv[]){
 
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
-
+    /*
     //Creating the semaphore and shm
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
 
-    sleep(2);   //todo la consigna dice Cuando inicia, DEBE esperar 2 segundos a que aparezca un 
+    sleep(2);   //todo la consigna dice Cuando inicia, DEBE esperar 2 segundos a que aparezca un
     //proceso vista, si lo hace le comparte el buffer de llegada.
     //vector de comunicacion para pipes
+    */
     slaveComm communications[NUM_CHILDS];
 
     //inicializacion de procesos esclavos
@@ -96,31 +102,38 @@ int main(int argc, char *argv[]){
         close(communications[i].masterToSlaveFd[READPOS]);
     }
 
+    //primero se cargan todos los programas posibles en los h
     //primero se cargan todos los programas posibles en los hijos
     int currentFile=1;
-    for (int i=0; argv[currentFile]!=NULL && i<NUM_CHILDS; i++) {
-        for (int j = 0; j < MAX_TASK_PER_CHILD && argv[currentFile]!=NULL; ++j)
-            queueIfFile(argv, communications[i], &currentFile);
+    for (int i=0; argv[currentFile]!=NULL && i<NUM_CHILDS; i++ , currentFile++) {
+        queueIfFile(argv[currentFile], &communications[i]);
     }
 
     //el primer argumento es el nombre del programa
-    for (int filesProcessed=0; filesProcessed < SHM_SIZE; ){
-        fd_set set = createSet(communications);
+    for (int filesProcessed = 0; filesProcessed < argc - 1;)   {
+        fd_set set;
+        int maxFd;
+        createSetAndMaxFd(communications, &set, &maxFd);
 
-        if(select(NUM_CHILDS + 1, &set, NULL, NULL,NULL)!= ERROR)
+        if(select(maxFd + 1,&set, NULL, NULL,NULL) == ERROR)
             errExit("Failed when using select");
         //Check which fd is ready
         for (int i = 0; i < NUM_CHILDS; i++) {
             if(FD_ISSET(communications[i].slaveToMasterFd[READPOS], &set)){
                 char buffer[MAX_SLAVE_OUTPUT];
                 getData(buffer, communications[i].slaveToMasterFd[READPOS]);
-                shmWriter(shareData, buffer);
+                //shmWriter(buffer, shareData);
+                puts(buffer);
                 filesProcessed++;
-                if(sem_post(getSem(shareData))==ERROR)
-                    errExit("could not execute sem_post");
-                queueIfFile(argv, communications[i], &currentFile);
+                //if(sem_post(getSem(shareData))==ERROR)
+                //errExit("could not execute sem_post");
+                //TODO fijarse que si es directorio, se sale del queueIfFile y no entra nada a ese slave
+                queueIfFile(argv[currentFile], &communications[i]);
+                //TODO HAY ALGO RARO CON EL INCREMENTO DE CURRENTFILE
+                currentFile++;
             }
         }
+
     }
 
 }

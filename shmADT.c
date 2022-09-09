@@ -29,20 +29,20 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     //SHM CREATION
     sharedData->shmFd=shm_open(shmName, O_CREAT | O_RDWR | O_EXCL, S_IWUSR | S_IRUSR );
     if(sharedData->shmFd==ERROR){
-        errExit("shm_open could not be executed");
+        return NULL;
     }
     if(ftruncate(sharedData->shmFd,sharedData->shmSize)==-1){
-        errExit("Space could not be allocated to shared memory segment");
+        return NULL;
     }
     sharedData->shmPtr = mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(sharedData->shmPtr == MAP_FAILED){
-        errExit("Shared memory segment could not be mapped to virtual memory of application process");
+        return NULL;
     }
 
     //SEM CREATION
     sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 1 );
     if(sharedData->mutexSem==SEM_FAILED){
-        errExit("could not create semaphore");
+        return NULL;
     }
     return sharedData;
 }
@@ -55,18 +55,18 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     //SHM CREATION
     sharedData->shmFd=shm_open(shmName, O_RDWR, S_IWUSR | S_IRUSR );
     if(sharedData->shmFd==-1){
-        errExit("shm_open could not be executed");
+        return NULL;
     }
     char *shmPtr =mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(shmPtr == MAP_FAILED){
-        errExit("Shared memory segment could not be mapped to virtual memory of application process");
+        return NULL;
     }
     sharedData->shmPtr=shmPtr;
 
     //SEM CREATION
     sharedData->mutexSem = sem_open(semName, 0);
     if(sharedData->mutexSem==SEM_FAILED){
-        errExit("could not create semaphore");
+        return NULL;
     }
     return sharedData;
 }
@@ -105,7 +105,7 @@ int shmWriter(shmADT data, char * buff){
 //Returns qty of bytes read, error handling must be done by calling process
 int shmReader(shmADT data, char * buff){
     if(data == NULL || buff == NULL)
-        return -1; //App hara el manejo de error
+        return -1; //View hara el manejo de error
 
     int bytesRead;
 
@@ -117,35 +117,26 @@ int shmReader(shmADT data, char * buff){
     return bytesRead;
 }
 
-//todo cambiar exit
-void unlinkData(shmADT data){
-    if(munmap(data->shmPtr, SHM_SIZE)<0){
-        errExit("Error executing munmap");
-        return;
-    }
-    if(shm_unlink(data->shmName)<0){
-        errExit("Error executing shm_unlink");
-        return;
-    }
-    if(sem_unlink(data->semName)<0){
-        errExit("Error executing sem_unlink");
-        return;
-    }
+int unlinkData(shmADT data){
+    if(munmap(data->shmPtr, SHM_SIZE)<0)
+        return -1;
+    if(shm_unlink(data->shmName)<0)
+        return -1;
+    if(sem_unlink(data->semName)<0)
+        return -1;
     free(data);
+    return 1;
 }
 
-//todo cambiar exit
-void closeData(shmADT data){
-    if(sem_close(data->mutexSem) == -1){
-        errExit("Error executing sem_close");
-    }
-    if(munmap(data->shmPtr, SHM_SIZE) == -1){
-        errExit("Error executing munmap");
-    }
-    if(close(data->shmFd) == -1){
-        errExit("Error executing close");
-    }
+int closeData(shmADT data){
+    if(sem_close(data->mutexSem) == -1)
+        return -1;
+    if(munmap(data->shmPtr, SHM_SIZE) == -1)
+        return -1;
+    if(close(data->shmFd) == -1)
+        return -1;
     free(data);
+    return 1
 }
 
 

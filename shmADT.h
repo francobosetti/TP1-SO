@@ -33,4 +33,5 @@ char *getShmPtr(shmADT data);
 void closeData(shmADT data);
 void unlinkData(shmADT data);
 int shmWriter(shmADT data, char *buff);
+int shmReader(shmADT data, char * buff);
 #endif //TP1_SO_SHMADT_H

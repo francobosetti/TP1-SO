@@ -63,10 +63,13 @@ int main(int argc, char *argv[]){
 
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
-    /*
+    
     //Creating the semaphore and shm
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
-
+    if(shareData==NULL)
+        errExit("Error when initiating shared data");
+    
+/*
     sleep(2);   //todo la consigna dice Cuando inicia, DEBE esperar 2 segundos a que aparezca un
     //proceso vista, si lo hace le comparte el buffer de llegada.
     //vector de comunicacion para pipes

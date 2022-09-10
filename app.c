@@ -18,6 +18,7 @@ typedef struct slaveComm{
 
 
 //devuelve como valor de retorno el maximo fileDescriptor
+
 int createReadSet(slaveComm * comms, fd_set * set){
     FD_ZERO(set);
     int max;
@@ -84,38 +85,21 @@ int main(int argc, char *argv[]){
     
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
-
-
     
     //chequeo si estoy escribiendo en un pipe
     struct stat s;
     fstat(STDOUT_FILENO,&s);
-    if ( S_ISFIFO(s.st_mode) )
+    if ( S_ISFIFO(s.st_mode) ) {
         printf("%s,%s\n", SHM_NAME, SEM_NAME);
-
-
-    
-
-
+    }
 
     //Creating the semaphore and shm
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
     if(shareData==NULL)
         errExit("Error when initiating shared data");
     
-    
-/*
-    sleep(2);   //todo la consigna dice Cuando inicia, DEBE esperar 2 segundos a que aparezca un
-    //proceso vista, si lo hace le comparte el buffer de llegada.
-    //vector de comunicacion para pipes
-    */
 
-
-
-
-
-
-
+    sleep(2);
 
     slaveComm communications[NUM_CHILDS];
 
@@ -158,15 +142,15 @@ int main(int argc, char *argv[]){
         fd_set readSet, writeSet;
         int maxfd = getMax(createReadSet(communications,&readSet),createWriteSet(communications,&writeSet));
 
-        if ( select(maxfd + 1,&readSet,&writeSet,NULL,NULL) == ERROR )
+        if (select(maxfd + 1, &readSet, &writeSet,NULL,NULL) == ERROR)
             errExit("error while using select");
         
 
         //chequear lo de ready con EOF
-        for ( int i = 0; i < NUM_CHILDS && argv[currentFile] != NULL; currentFile++, i++){
+        for (int i = 0; i < NUM_CHILDS && argv[currentFile] != NULL; currentFile++, i++){
             if (!FD_ISSET(communications[i].masterToSlaveFd[WRITEPOS],&writeSet))
                 continue;
-            if ( !isReg(argv[currentFile])){
+            if (!isReg(argv[currentFile])){
                 cantNoRegFiles++;
                 continue;
             }
@@ -174,16 +158,18 @@ int main(int argc, char *argv[]){
             sendTaskToChild(argv[currentFile],&communications[i]);
         }
 
-        for ( int i = 0; i < NUM_CHILDS ; i++){
-            if (!FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet))
+        for ( int i = 0; i < NUM_CHILDS ; i++) {
+            if (!FD_ISSET(communications[i].slaveToMasterFd[READPOS], &readSet))
                 continue;
             //si puedo leer en este fd
             char buffer[MAX_BUFF];
-            getData(buffer,communications[i].slaveToMasterFd[READPOS]);
-            puts(buffer);
+            getData(buffer, communications[i].slaveToMasterFd[READPOS]);
+            shmWriter(shareData, buffer);
+            sem_post(getSem(shareData));
             filesProccesed++;
         }
-        
     }
-
+    //TODO el pipe no hace que corran en simultaneo, se elimina el shm antes de ejecutarse el view
+    //unlinkData(shareData);
+    return 0;
 }

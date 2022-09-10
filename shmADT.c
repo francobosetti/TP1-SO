@@ -2,14 +2,7 @@
 // https://www.thegeekstuff.com/2010/10/linux-error-codes/ --> setear errExits con valores de ERRNO correspondientes
 // y devolver null en caso de error
 
-
-// app | view --> 
-//desde ap  --> imprimo a stdout
-// read desde --> view
-
 #include "shmADT.h"
-
-#define PARSER(n) ((n) != ',' && (n) != '\n')
 
 struct shmCDT{
     sem_t *mutexSem;
@@ -61,10 +54,10 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     sharedData->shmSize=shmSize;
     //SHM CREATION
     sharedData->shmFd=shm_open(shmName, O_RDWR, S_IWUSR | S_IRUSR );
-    if(sharedData->shmFd==-1){
+    if(sharedData->shmFd==ERROR){
         return NULL;
     }
-    char *shmPtr =mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
+    char *shmPtr = mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(shmPtr == MAP_FAILED){
         return NULL;
     }
@@ -110,26 +103,20 @@ int shmReader(shmADT data, char * buff){
 }
 
 int unlinkData(shmADT data){
-    if(munmap(data->shmPtr, SHM_SIZE)<0)
-        return -1;
-    if(shm_unlink(data->shmName)<0)
-        return -1;
-    if(sem_unlink(data->semName)<0)
+    if(munmap(data->shmPtr, SHM_SIZE)<0 || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0)
         return -1;
     free(data);
-    return 1;
+    return 0;
 }
 
 int closeData(shmADT data){
-    if(sem_close(data->mutexSem) == -1)
-        return -1;
-    if(munmap(data->shmPtr, SHM_SIZE) == -1)
-        return -1;
-    if(close(data->shmFd) == -1)
+    if(sem_close(data->mutexSem) == ERROR || munmap(data->shmPtr, SHM_SIZE) == ERROR || close(data->shmFd) == ERROR)
         return -1;
     free(data);
-    return 1
+    return 0;
 }
 
-
+sem_t *getSem(shmADT data){
+    return data->mutexSem;
+}
 

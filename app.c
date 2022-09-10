@@ -35,7 +35,7 @@ int createWriteSet(slaveComm * comms, fd_set * set){
     FD_ZERO(set);
     int max;
     for (int i = 0; i < NUM_CHILDS; ++i){
-        //trabajoo con slaveToMaster
+        //trabajoo con masterToSlave
         FD_SET(comms[i].masterToSlaveFd[WRITEPOS], set);
         if ( i == 0 || comms[i].masterToSlaveFd[WRITEPOS] > max)
             max = comms[i].masterToSlaveFd[WRITEPOS];
@@ -88,6 +88,7 @@ void getData(char * buffer, int fd){
     }
     buffer[i] = 0;
 }
+
 
 int main(int argc, char *argv[]){
     /*
@@ -147,7 +148,10 @@ int main(int argc, char *argv[]){
     
 
     /**/
-    for ( int filesProccesed = 0, currentFile = 1; filesProccesed < argc - 1 ;){
+    int cantFiles = argc - 1;
+    int cantNoRegFiles = 0;
+
+    for ( int filesProccesed = 0, currentFile = 1; filesProccesed < cantFiles - cantNoRegFiles ;){
         fd_set readSet, writeSet;
         int maxfd = getMax(createReadSet(communications,&readSet),createWriteSet(communications,&writeSet));
 
@@ -156,14 +160,16 @@ int main(int argc, char *argv[]){
         
 
         //chequear lo de ready con EOF
-
         for ( int i = 0; i < NUM_CHILDS && argv[currentFile] != NULL; currentFile++, i++){
-            if (!FD_ISSET(communications[i].masterToSlaveFd[WRITEPOS],&writeSet) || !isReg(argv[currentFile]))
+            if (!FD_ISSET(communications[i].masterToSlaveFd[WRITEPOS],&writeSet))
                 continue;
+            if ( !isReg(argv[currentFile])){
+                cantNoRegFiles++;
+                continue;
+            }
             //si puedo escribir en este fd
             sendTaskToChild(argv[currentFile],&communications[i]);
         }
-
 
         for ( int i = 0; i < NUM_CHILDS ; i++){
             if (!FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet))

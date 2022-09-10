@@ -2,6 +2,11 @@
 // https://www.thegeekstuff.com/2010/10/linux-error-codes/ --> setear errExits con valores de ERRNO correspondientes
 // y devolver null en caso de error
 
+
+// app | view --> 
+//desde ap  --> imprimo a stdout
+// read desde --> view
+
 #include "shmADT.h"
 
 #define PARSER(n) ((n) != ',' && (n) != '\n')
@@ -20,7 +25,7 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     shmADT sharedData = malloc(sizeof(struct shmCDT));
     sharedData->shmName = shmName;
     sharedData->semName = semName;
-    sharedData->shmSize=shmSize;
+    sharedData->shmSize = shmSize;
     sharedData->currentPos=0;
     //Just in case there is something at that path I need to unlink it first
     shm_unlink(shmName);
@@ -31,19 +36,21 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     if(sharedData->shmFd==ERROR){
         return NULL;
     }
+
     if(ftruncate(sharedData->shmFd,sharedData->shmSize)==-1){
         return NULL;
     }
+
     sharedData->shmPtr = mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(sharedData->shmPtr == MAP_FAILED){
         return NULL;
     }
-
     //SEM CREATION
     sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 1 );
     if(sharedData->mutexSem==SEM_FAILED){
         return NULL;
     }
+
     return sharedData;
 }
 
@@ -78,27 +85,12 @@ int shmWriter(shmADT data, char * buff){
 
     int bytesWritten;
 
-    bytesWritten = sprintf(&(data->shmPtr[data->currentPos]), "%s", buff);
+    bytesWritten = sprintf(&(data->shmPtr[data->currentPos]) , "%s", buff);
 
     if(bytesWritten > 0)
         data->currentPos += bytesWritten + 1;
 
     return bytesWritten;
-
-    /*
-    int size=strlen(buff);
-
-    if((data->currentPos + size + 1) >= data->shmSize)
-        return -1;
-
-
-    for (int i = 0; i < size; i++)
-        data->shmPtr[(data->currentPos)++] = buff[i];
-
-    data->shmPtr[(data->currentPos)++]='\n';
-
-     return 0;
-     */
 
 }
 
@@ -138,5 +130,6 @@ int closeData(shmADT data){
     free(data);
     return 1
 }
+
 
 

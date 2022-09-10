@@ -52,17 +52,7 @@ int isReg(const char* fileName){
     stat(fileName, &path);
     return S_ISREG(path.st_mode);
 }
-/*
-void createSetAndMaxFd(slaveComm *comms, fd_set * set, int * maxFd){
-    FD_ZERO(set);
-    *maxFd = comms[0].slaveToMasterFd[READPOS];
-    for (int i = 0; i < NUM_CHILDS; ++i){
-        FD_SET(comms[i].slaveToMasterFd[READPOS], set);
-        if(comms[i].slaveToMasterFd[READPOS] > *maxFd)
-            *maxFd = comms[i].slaveToMasterFd[READPOS];
-    }
-}
-*/
+
 
 void sendTask(slaveComm *comm, char * file){
     if(write(comm->masterToSlaveFd[WRITEPOS], file, strlen(file)) == ERROR)
@@ -91,21 +81,42 @@ void getData(char * buffer, int fd){
 
 
 int main(int argc, char *argv[]){
-    /*
+    
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
+
+
     
+    //chequeo si estoy escribiendo en un pipe
+    struct stat s;
+    fstat(STDOUT_FILENO,&s);
+    if ( S_ISFIFO(s.st_mode) )
+        printf("%s,%s\n", SHM_NAME, SEM_NAME);
+
+
+    
+
+
+
     //Creating the semaphore and shm
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
     if(shareData==NULL)
         errExit("Error when initiating shared data");
-    */
+    
     
 /*
     sleep(2);   //todo la consigna dice Cuando inicia, DEBE esperar 2 segundos a que aparezca un
     //proceso vista, si lo hace le comparte el buffer de llegada.
     //vector de comunicacion para pipes
     */
+
+
+
+
+
+
+
+
     slaveComm communications[NUM_CHILDS];
 
     //inicializacion de procesos esclavos
@@ -130,24 +141,16 @@ int main(int argc, char *argv[]){
             close(communications[i].masterToSlaveFd[READPOS]);
 
             char * args[] = {NULL};
-            execv(SLAVE_NAME,args);
+            int retVal = execv(SLAVE_NAME,args);
+            if ( retVal == ERROR)
+                errExit("Error in execv syscall");
         }
         //master no escribe en slaveToMaster y no lee en masterToSlave
         close(communications[i].slaveToMasterFd[WRITEPOS]);
         close(communications[i].masterToSlaveFd[READPOS]);
     }
 
-    //primero se cargan todos los programas posibles en los h
-    //primero se cargan todos los programas posibles en los hijos
-    /*
-    int currentFile=1;
-    for (int i=0; argv[currentFile]!=NULL && i<NUM_CHILDS; i++ , currentFile++) {
-        queueIfFile(argv[currentFile], &communications[i]);
-    }
-    */
-    
 
-    /**/
     int cantFiles = argc - 1;
     int cantNoRegFiles = 0;
 

@@ -17,6 +17,7 @@
 #define MAX_BUFF 4096
 #define MD5_LENGTH 32
 #define TRANSFERSIZE 64
+#define REGBUFFSIZE 128
 #define PIPESIZE 2
 #define READPOS 0
 #define WRITEPOS 1

@@ -1,14 +1,12 @@
 #include "lib.h"
 #include "shmADT.h"
 
-int getCantDigits(int n){
-    int count = 0;
-    do {
-        n /= 10;
-        ++count;
-    } while (n != 0);
-    return count;
-}
+
+
+typedef struct {
+    char shmName[REGBUFFSIZE];
+    char semName[REGBUFFSIZE];
+} information;
 
 void prepareData(char * buff, char * fileName, char * md5, int * pidSlave){
     int i=0;
@@ -22,35 +20,45 @@ void prepareData(char * buff, char * fileName, char * md5, int * pidSlave){
         fileName[j]=buff[i];
     }
     i++;
-    &pidSlave=atoi(buff[i]);
+    *pidSlave=atoi(buff[i]);
 }
 
-void getDataFromSHM(char * shmPtr, char* md5, char* fileName, int * pid){
-    for (int i = 0; PARSER(data->shmPtr[data->currentPos]); ++i, (data->currentPos)++)
-        md5[i] = data->shmPtr[data->currentPos];
 
-    for (int i = 0; PARSER(data->shmPtr[data->currentPos]); ++i, (data->currentPos)++)
-        fileName[i] = data->shmPtr[data->currentPos];
 
-    (*pid) = atoi(data->shmPtr+data->currentPos);
-    data->currentPos += getCantDigits(*pid);
+void parseData(information * info){
+    
 }
 
-// Hash: ... | Nombre: ... | Slave PID: ...\n
+
+// orden es shmName,semName
 int main(int argc, char *argv[]){
     //todo tema recibir los datos de la shm
-    //todo hacer un semaforo que espere hasta q este habilitado 
-    shmADT shareData= openSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
+    //todo hacer un semaforo que espere hasta q este habilitado
+
+    if ( argc < 2){
+        //entonces no tengo los datos en argv
+
+
+    } else {
+        //si tengo los datos en argv
+
+    }
+
+
+    
+
+    shmADT shareData= openSharedData(shmName, semName, SHM_SIZE);
     if(shareData==NULL)
         errExit("Error when opening shared data");
 
     char md5[MD5_LENGTH],fileName[MAX_BUFF];
     int pidSlave;
-    while(...){
+    while(i <= cantTask){
         if(sem_wait(getSem(shareData))== ERROR)
             errExit("error at sempahore waiting");
         char buff[MAX_BUFF];
-        shmReader(shareData, buff);
+        if(shmReader(shareData, buff)==ERROR)
+            errExit("Error at trying to read from shared memory");
         prepareData(buff, fileName, md5, &pidSlave);
         printf("File name:%s, md5sum: %s, SlavePID: %d", fileName, md5, pidSlave);
     }

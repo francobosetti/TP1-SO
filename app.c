@@ -6,6 +6,7 @@
 #define NUM_CHILDS 4
 #define MAX_TASK_PER_CHILD 3
 #define MAX_SLAVE_OUTPUT 256
+#define CHILDTASKS 2
 
 #define SLAVE_NAME "./slave"
 #define ANSWER_NAME "./Answers.txt"
@@ -15,31 +16,60 @@ typedef struct slaveComm{
     int slaveToMasterFd[PIPESIZE];
 }slaveComm;
 
+
+//devuelve como valor de retorno el maximo fileDescriptor
+int createReadSet(slaveComm * comms, fd_set * set){
+    FD_ZERO(set);
+    int max;
+    for (int i = 0; i < NUM_CHILDS; ++i){
+        //trabajoo con slaveToMaster
+        FD_SET(comms[i].slaveToMasterFd[READPOS], set);
+        if ( i == 0 || comms[i].slaveToMasterFd[READPOS] > max)
+            max = comms[i].slaveToMasterFd[READPOS];
+    }
+    return max;
+}
+
+//devuelve como valor de retorno el maximo fileDescriptor
+int createWriteSet(slaveComm * comms, fd_set * set){
+    FD_ZERO(set);
+    int max;
+    for (int i = 0; i < NUM_CHILDS; ++i){
+        //trabajoo con slaveToMaster
+        FD_SET(comms[i].masterToSlaveFd[WRITEPOS], set);
+        if ( i == 0 || comms[i].masterToSlaveFd[WRITEPOS] > max)
+            max = comms[i].masterToSlaveFd[WRITEPOS];
+    }
+    return max;
+}
+
+int getMax(int num1, int num2){
+    return num1 > num2 ? num1:num2;
+}
+
 int isReg(const char* fileName){
     struct stat path;
     stat(fileName, &path);
     return S_ISREG(path.st_mode);
 }
-
+/*
 void createSetAndMaxFd(slaveComm *comms, fd_set * set, int * maxFd){
     FD_ZERO(set);
     *maxFd = comms[0].slaveToMasterFd[READPOS];
     for (int i = 0; i < NUM_CHILDS; ++i){
         FD_SET(comms[i].slaveToMasterFd[READPOS], set);
-
         if(comms[i].slaveToMasterFd[READPOS] > *maxFd)
             *maxFd = comms[i].slaveToMasterFd[READPOS];
     }
 }
+*/
 
 void sendTask(slaveComm *comm, char * file){
     if(write(comm->masterToSlaveFd[WRITEPOS], file, strlen(file)) == ERROR)
         errExit("Failed at writing on child pipe from master");
 }
 
-void queueIfFile(char * fileName, slaveComm * comm){
-    if ( !isReg(fileName) )
-        return;
+void sendTaskToChild(char * fileName, slaveComm * comm){
     //si el archivo es regular lo mandamos
 
     char aux[TRANSFERSIZE];
@@ -60,7 +90,7 @@ void getData(char * buffer, int fd){
 }
 
 int main(int argc, char *argv[]){
-
+    /*
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
     
@@ -68,6 +98,7 @@ int main(int argc, char *argv[]){
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
     if(shareData==NULL)
         errExit("Error when initiating shared data");
+    */
     
 /*
     sleep(2);   //todo la consigna dice Cuando inicia, DEBE esperar 2 segundos a que aparezca un
@@ -107,36 +138,43 @@ int main(int argc, char *argv[]){
 
     //primero se cargan todos los programas posibles en los h
     //primero se cargan todos los programas posibles en los hijos
+    /*
     int currentFile=1;
     for (int i=0; argv[currentFile]!=NULL && i<NUM_CHILDS; i++ , currentFile++) {
         queueIfFile(argv[currentFile], &communications[i]);
     }
+    */
+    
 
-    //el primer argumento es el nombre del programa
-    for (int filesProcessed = 0; filesProcessed < argc - 1;)   {
-        fd_set set;
-        int maxFd;
-        createSetAndMaxFd(communications, &set, &maxFd);
+    /**/
+    for ( int filesProccesed = 0, currentFile = 1; filesProccesed < argc - 1 ;){
+        fd_set readSet, writeSet;
+        int maxfd = getMax(createReadSet(communications,&readSet),createWriteSet(communications,&writeSet));
 
-        if(select(maxFd + 1,&set, NULL, NULL,NULL) == ERROR)
-            errExit("Failed when using select");
-        //Check which fd is ready
-        for (int i = 0; i < NUM_CHILDS; i++) {
-            if(FD_ISSET(communications[i].slaveToMasterFd[READPOS], &set)){
-                char buffer[MAX_SLAVE_OUTPUT];
-                getData(buffer, communications[i].slaveToMasterFd[READPOS]);
-                //shmWriter(buffer, shareData);
-                puts(buffer);
-                filesProcessed++;
-                //if(sem_post(getSem(shareData))==ERROR)
-                //errExit("could not execute sem_post");
-                //TODO fijarse que si es directorio, se sale del queueIfFile y no entra nada a ese slave
-                queueIfFile(argv[currentFile], &communications[i]);
-                //TODO HAY ALGO RARO CON EL INCREMENTO DE CURRENTFILE
-                currentFile++;
-            }
+        if ( select(maxfd + 1,&readSet,&writeSet,NULL,NULL) == ERROR )
+            errExit("error while using select");
+        
+
+        //chequear lo de ready con EOF
+
+        for ( int i = 0; i < NUM_CHILDS && argv[currentFile] != NULL; currentFile++, i++){
+            if (!FD_ISSET(communications[i].masterToSlaveFd[WRITEPOS],&writeSet) || !isReg(argv[currentFile]))
+                continue;
+            //si puedo escribir en este fd
+            sendTaskToChild(argv[currentFile],&communications[i]);
         }
 
+
+        for ( int i = 0; i < NUM_CHILDS ; i++){
+            if (!FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet))
+                continue;
+            //si puedo leer en este fd
+            char buffer[MAX_BUFF];
+            getData(buffer,communications[i].slaveToMasterFd[READPOS]);
+            puts(buffer);
+            filesProccesed++;
+        }
+        
     }
 
 }

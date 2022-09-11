@@ -42,7 +42,7 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
         return NULL;
     }
     //SEM CREATION
-    sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 1);
+    sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 0);
     if(sharedData->mutexSem==SEM_FAILED){
         return NULL;
     }

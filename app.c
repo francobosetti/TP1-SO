@@ -107,15 +107,17 @@ int main(int argc, char *argv[]){
     fstat(STDOUT_FILENO,&s);
     if (S_ISFIFO(s.st_mode)) {
         printf("%s,%s\n", SHM_NAME, SEM_NAME);
+        
     }
 
     //Creating the semaphore and shm
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
+    
     if(shareData==NULL)
         errExit("Error when initiating shared data");
-
+    fflush(stdout);
     sleep(2);
-
+    
     slaveComm communications[NUM_CHILDS];
 
     //inicializacion de procesos esclavos
@@ -188,11 +190,11 @@ int main(int argc, char *argv[]){
                     sendTaskToChild(regArgV[currentFile],&communications[i], shareData);
                     currentFile++;
                 }
-                fflush(stdout);
             }
         }
     }
 
+    sem_post(getSem(shareData));
     free(regArgV);
     fclose(resultFile);
     closeShm(shareData);

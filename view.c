@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
         strcpy(info.semName,argv[2]);
     }
 
-    shmADT shareData= openSharedData(info.shmName, info.semName, SHM_SIZE);
+    shmADT shareData = openSharedData(info.shmName, info.semName, SHM_SIZE);
     if(shareData==NULL)
         errExitUnlink("Error when opening shared data", shareData);
 

@@ -42,7 +42,6 @@ void parseData(information * info){
 // orden es shmName,semName
 int main(int argc, char *argv[]){
     information info;
-    printf("En ele view\n");
     if ( argc < 2){
         //entonces no tengo los datos en argv, debo parsearlos
         //se imprime shmName,semName

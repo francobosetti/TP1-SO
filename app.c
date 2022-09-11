@@ -97,12 +97,16 @@ char ** removeNoReg(char ** argv, int * size){
     for (int i = 1; argv[i] != NULL; i++){
         if ( j % MEMINC == 0){
             regArgv = realloc(regArgv, (MEMINC + j) * sizeof(char *) );
+            if ( regArgv == NULL)
+                errExit("failed realloc");
         }
         if ( isReg(argv[i]) ){
             regArgv[j++] = argv[i];
         }
     }
     regArgv = realloc(regArgv,(j + 1) * sizeof(char *));
+    if ( regArgv == NULL)
+        errExit("Failed realloc");
     regArgv[j] = NULL;
     *size = j;
     return regArgv;

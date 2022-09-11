@@ -73,7 +73,7 @@ char ** removeNoReg(char ** argv, int * size, shmADT data){
     for (int i = 1; argv[i] != NULL; i++){
         if ( j % MEMINC == 0){
             regArgv = realloc(regArgv, (MEMINC + j) * sizeof(char *) );
-            if ( regArgv == NULL)
+            if (regArgv == NULL)
                 errExitUnlink("failed realloc", data);
         }
         if ( isReg(argv[i]) ){
@@ -81,7 +81,7 @@ char ** removeNoReg(char ** argv, int * size, shmADT data){
         }
     }
     regArgv = realloc(regArgv,(j + 1) * sizeof(char *));
-    if ( regArgv == NULL)
+    if (regArgv == NULL)
         errExitUnlink("Failed realloc", data);
     regArgv[j] = NULL;
     *size = j;
@@ -93,7 +93,6 @@ int getNumberOfFilesPerChild(int fileNum){
     int result = (int) ( fileNum * 0.10 / NUM_CHILDS) ;
     return result == 0 ? DEFAULTTASKNUMBER:result;
 }
-
 
 int main(int argc, char *argv[]){
     if(argc<2)
@@ -187,6 +186,7 @@ int main(int argc, char *argv[]){
 
     free(regArgV);
     fclose(resultFile);
+    //closeShm(shareData);
     //TODO el pipe no hace que corran en simultaneo, se elimina el shm antes de ejecutarse el view
     //unlinkData(shareData);
     return 0;

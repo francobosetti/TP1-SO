@@ -72,8 +72,7 @@ int main(int argc, char *argv[]){
     }
     while(bytesRead != 0);
 
-    closeData(shareData);
-    unlinkData(shareData);
+    closeShm(shareData);
 
     return 0;
 }

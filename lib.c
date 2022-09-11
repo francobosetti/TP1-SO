@@ -5,7 +5,7 @@
 
 void errExitUnlink(char * msg, shmADT data){
     perror(msg);
-    unlinkData(data);
+    closeShm(data);
     exit(ERROR);
 }
 

@@ -28,8 +28,7 @@ typedef struct shmCDT * shmADT;
 shmADT initiateSharedData(char * shmName, char * semName, int shmSize);
 shmADT openSharedData(char * shmName, char * semName, int shmSize);
 sem_t *getSem(shmADT data);
-int closeData(shmADT data);
-int unlinkData(shmADT data);
+int closeShm(shmADT data);
 int shmWriter(shmADT data, char *buff);
 int shmReader(shmADT data, char * buff);
 #endif //TP1_SO_SHMADT_H

@@ -9,6 +9,7 @@ struct shmCDT{
     int shmFd;
     int shmSize;
     int currentPos;
+    bool creator;
     char *shmName;
     char *shmPtr;
     char *semName;
@@ -20,6 +21,7 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     sharedData->semName = semName;
     sharedData->shmSize = shmSize;
     sharedData->currentPos=0;
+    sharedData->creator = true;
 
     //Just in case there is something at that path I need to unlink it first
     shm_unlink(shmName);
@@ -53,6 +55,7 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     sharedData->shmName = shmName;
     sharedData->semName = semName;
     sharedData->shmSize=shmSize;
+    sharedData->creator = false;
     //SHM CREATION
     sharedData->shmFd=shm_open(shmName, O_RDWR, S_IWUSR | S_IRUSR );
     if(sharedData->shmFd==ERROR){
@@ -102,17 +105,32 @@ int shmReader(shmADT data, char * buff){
     return bytesRead;
 }
 
-int unlinkData(shmADT data){
-    if(data == NULL || munmap(data->shmPtr, SHM_SIZE)<0 || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0)
+void freeShm(shmADT data){
+    free(data);
+}
+
+static int unlinkShmAndSem(shmADT data){
+    if(data == NULL || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0)
         return -1;
     free(data);
     return 0;
 }
 
-int closeData(shmADT data){
-    if(sem_close(data->mutexSem) == ERROR || munmap(data->shmPtr, SHM_SIZE) == ERROR || close(data->shmFd) == ERROR)
-        return -1;
-    free(data);
+int closeShm(shmADT data){
+    if(data == NULL)
+        return ERROR;
+
+    if(munmap(data->shmPtr, data->shmSize) == ERROR || close(data->shmFd) == ERROR || sem_close(data->mutexSem) == ERROR){
+        unlinkShmAndSem(data);
+        freeShm(data);
+        return ERROR;
+    }
+
+    if(data->creator){
+        unlinkShmAndSem(data);
+    }
+
+    freeShm(data);
     return 0;
 }
 

@@ -1,8 +1,6 @@
 #include "lib.h"
 #include "shmADT.h"
 
-//we have to define number of child that the parent will create and how many tasks can a child make at MAX
-// _BSD-SOURCE --> VER BIEN ESTO, ES PARA LA MACRO ISDIR
 #define NUM_CHILDS 4
 #define MAX_TASK_PER_CHILD 3
 #define MAX_SLAVE_OUTPUT 256
@@ -11,7 +9,10 @@
 #define DEFAULTTASKNUMBER 1
 
 #define SLAVE_NAME "./slave"
-#define ANSWER_NAME "./Answers.txt"
+#define RESULTS_NAME "results.csv"
+#define SHM_NAME "/appshm"
+#define SEM_NAME "/sem"
+
 
 typedef struct slaveComm{
     int masterToSlaveFd[PIPESIZE];
@@ -192,7 +193,7 @@ int main(int argc, char *argv[]){
 
     
 
-    FILE * resultFile = fopen("results.csv","w+");
+    FILE * resultFile = fopen(RESULTS_NAME,"w+");
     prepareHeaders(resultFile);
 
 

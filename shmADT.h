@@ -20,9 +20,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#define SHM_NAME "/appshm"
-#define SEM_NAME "/sem"
-#define SHM_SIZE 256
+
 
 #define ERROR -1
 

@@ -2,9 +2,6 @@
 #include "shmADT.h"
 
 #define NUM_CHILDS 4
-#define MAX_TASK_PER_CHILD 3
-#define MAX_SLAVE_OUTPUT 256
-#define CHILDTASKS 2
 #define MEMINC 5
 #define DEFAULTTASKNUMBER 1
 
@@ -13,15 +10,12 @@
 #define SHM_NAME "/appshm"
 #define SEM_NAME "/sem"
 
-
 typedef struct slaveComm{
     int masterToSlaveFd[PIPESIZE];
     int slaveToMasterFd[PIPESIZE];
 }slaveComm;
 
-
 //devuelve como valor de retorno el maximo fileDescriptor
-
 int createReadSet(slaveComm * comms, fd_set * set){
     FD_ZERO(set);
     int max;
@@ -34,19 +28,6 @@ int createReadSet(slaveComm * comms, fd_set * set){
     return max;
 }
 
-//devuelve como valor de retorno el maximo fileDescriptor
-int createWriteSet(slaveComm * comms, fd_set * set){
-    FD_ZERO(set);
-    int max;
-    for (int i = 0; i < NUM_CHILDS; ++i){
-        //trabajoo con masterToSlave
-        FD_SET(comms[i].masterToSlaveFd[WRITEPOS], set);
-        if ( i == 0 || comms[i].masterToSlaveFd[WRITEPOS] > max)
-            max = comms[i].masterToSlaveFd[WRITEPOS];
-    }
-    return max;
-}
-
 void sendDataToFile(FILE * fptr, char * buffer){
     fprintf(fptr,"%s",buffer);
 }
@@ -55,28 +36,22 @@ void prepareHeaders(FILE * fptr){
     fprintf(fptr,"Hash,FileName,slavePid\n");
 }
 
-int getMax(int num1, int num2){
-    return num1 > num2 ? num1:num2;
-}
-
 int isReg(const char* fileName){
     struct stat path;
     stat(fileName, &path);
     return S_ISREG(path.st_mode);
 }
 
-
-void sendTask(slaveComm *comm, char * file){
+void sendTask(slaveComm *comm, char * file, shmADT data){
     if(write(comm->masterToSlaveFd[WRITEPOS], file, strlen(file)) == ERROR)
-        errExit("Failed at writing on child pipe from master");
+        errExitUnlink("Failed at writing on child pipe from master", data);
 }
 
-void sendTaskToChild(char * fileName, slaveComm * comm){
+void sendTaskToChild(char * fileName, slaveComm * comm, shmADT data){
     //si el archivo es regular lo mandamos
-
     char aux[TRANSFERSIZE];
     sprintf(aux,"%s\n",fileName);
-    sendTask(comm,aux);
+    sendTask(comm,aux, data);
 }
 
 void getData(char * buffer, int fd){
@@ -92,14 +67,14 @@ void getData(char * buffer, int fd){
 }
 
 //TODO responsabilidad del main liberar esta funcion
-char ** removeNoReg(char ** argv, int * size){
+char ** removeNoReg(char ** argv, int * size, shmADT data){
     char ** regArgv = NULL;
     int j = 0;
     for (int i = 1; argv[i] != NULL; i++){
         if ( j % MEMINC == 0){
             regArgv = realloc(regArgv, (MEMINC + j) * sizeof(char *) );
             if ( regArgv == NULL)
-                errExit("failed realloc");
+                errExitUnlink("failed realloc", data);
         }
         if ( isReg(argv[i]) ){
             regArgv[j++] = argv[i];
@@ -107,7 +82,7 @@ char ** removeNoReg(char ** argv, int * size){
     }
     regArgv = realloc(regArgv,(j + 1) * sizeof(char *));
     if ( regArgv == NULL)
-        errExit("Failed realloc");
+        errExitUnlink("Failed realloc", data);
     regArgv[j] = NULL;
     *size = j;
     return regArgv;
@@ -121,14 +96,13 @@ int getNumberOfFilesPerChild(int fileNum){
 
 
 int main(int argc, char *argv[]){
-    
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
     
     //chequeo si estoy escribiendo en un pipe
     struct stat s;
     fstat(STDOUT_FILENO,&s);
-    if ( S_ISFIFO(s.st_mode) ) {
+    if (S_ISFIFO(s.st_mode)) {
         printf("%s,%s\n", SHM_NAME, SEM_NAME);
     }
 
@@ -136,7 +110,6 @@ int main(int argc, char *argv[]){
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
     if(shareData==NULL)
         errExit("Error when initiating shared data");
-    
 
     sleep(2);
 
@@ -145,13 +118,13 @@ int main(int argc, char *argv[]){
     //inicializacion de procesos esclavos
     for (int i = 0; i < NUM_CHILDS ; i++){
         if (pipe(communications[i].masterToSlaveFd) == ERROR)
-            errExit("Error in master to slave pipe creation");
+            errExitUnlink("Error in master to slave pipe creation", shareData);
         if ( pipe(communications[i].slaveToMasterFd) == ERROR)
-            errExit("Error in slave to master pipe creation");
+            errExitUnlink("Error in slave to master pipe creation", shareData);
 
         pid_t  myPid =  fork();
         if(myPid == ERROR)
-            errExit("Fork could not be executed");
+            errExitUnlink("Fork could not be executed", shareData);
         if (myPid == 0){
             //tenemos que dejar el pipe bien hecho
             close(communications[i].masterToSlaveFd[WRITEPOS]);//slave no escribe en masterToSlave
@@ -165,19 +138,16 @@ int main(int argc, char *argv[]){
 
             char * args[] = {NULL};
             int retVal = execv(SLAVE_NAME,args);
-            if ( retVal == ERROR)
-                errExit("Error in execv syscall");
+            if (retVal == ERROR)
+                errExitUnlink("Error in execv syscall", shareData);
         }
         //master no escribe en slaveToMaster y no lee en masterToSlave
         close(communications[i].slaveToMasterFd[WRITEPOS]);
         close(communications[i].masterToSlaveFd[READPOS]);
     }
 
-
-
-
     int cantRegFiles;
-    char **regArgV = removeNoReg(argv,&cantRegFiles);
+    char **regArgV = removeNoReg(argv,&cantRegFiles, shareData);
 
     //calculamos la cantidad de archivos a procesar por hijo, en base a los archivos regulares que nos pasaron
     int filesPerChild = getNumberOfFilesPerChild(cantRegFiles);
@@ -187,21 +157,18 @@ int main(int argc, char *argv[]){
     for ( int i = 0; i < NUM_CHILDS && regArgV[currentFile] != NULL ; i++){
         for (int j = 0; j < filesPerChild && regArgV[currentFile] != NULL ;j++){
             if ( regArgV[currentFile] != NULL)
-                sendTaskToChild(regArgV[currentFile++],&communications[i]);
+                sendTaskToChild(regArgV[currentFile++],&communications[i], shareData);
         }
     }
 
-    
-
     FILE * resultFile = fopen(RESULTS_NAME,"w+");
     prepareHeaders(resultFile);
-
 
     for ( int filesProccesed = 0; filesProccesed < cantRegFiles ;){
         fd_set readSet;
         int maxfd = createReadSet(communications,&readSet);
         if (select(maxfd + 1, &readSet, NULL,NULL,NULL) == ERROR)
-            errExit("error while using select");
+            errExitUnlink("Error while using select", shareData);
         for ( int i =0 ; i < NUM_CHILDS ; i++){
             if ( FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet)){
                 char buffer[REGBUFFSIZE];
@@ -211,12 +178,11 @@ int main(int argc, char *argv[]){
                 sendDataToFile(resultFile,buffer);
                 filesProccesed++;
                 if ( regArgV[currentFile] != NULL) {
-                    sendTaskToChild(regArgV[currentFile],&communications[i]);
+                    sendTaskToChild(regArgV[currentFile],&communications[i], shareData);
                     currentFile++;
                 }
             }
         }
-     
     }
 
     free(regArgV);

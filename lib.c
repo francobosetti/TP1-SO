@@ -3,8 +3,13 @@
 #include "lib.h"
 #include "shmADT.h"
 
-void errExit(char * msg, shmADT data){
+void errExitUnlink(char * msg, shmADT data){
     perror(msg);
     unlinkData(data);
+    exit(ERROR);
+}
+
+void errExit(char * msg){
+    perror(msg);
     exit(ERROR);
 }

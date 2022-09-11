@@ -14,7 +14,7 @@
 #include "shmADT.h"
 //macros to be used by all .c files
 
-#define SHM_SIZE 256
+
 #define MAX_BUFF 4096
 #define MD5_LENGTH 32
 #define TRANSFERSIZE 64
@@ -25,6 +25,7 @@
 #define FINISHREADING 0
 #define ERROR (-1)
 
-void errExit(char * msg, shmADT data);
+void errExit(char * msg);
+void errExitUnlink(char * msg, shmADT data);
 
 #endif //TP1_SO_LIB_H

@@ -21,7 +21,7 @@
 #include <signal.h>
 
 
-
+#define SHM_SIZE 256
 #define ERROR -1
 
 typedef struct shmCDT * shmADT;

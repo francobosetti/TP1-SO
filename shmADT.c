@@ -20,6 +20,7 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     sharedData->semName = semName;
     sharedData->shmSize = shmSize;
     sharedData->currentPos=0;
+
     //Just in case there is something at that path I need to unlink it first
     shm_unlink(shmName);
     sem_unlink(semName);
@@ -30,7 +31,7 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
         return NULL;
     }
 
-    if(ftruncate(sharedData->shmFd,sharedData->shmSize)==-1){
+    if(ftruncate(sharedData->shmFd,sharedData->shmSize)==ERROR){
         return NULL;
     }
 
@@ -39,7 +40,7 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
         return NULL;
     }
     //SEM CREATION
-    sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 1 );
+    sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 1);
     if(sharedData->mutexSem==SEM_FAILED){
         return NULL;
     }
@@ -78,13 +79,12 @@ int shmWriter(shmADT data, char * buff){
 
     int bytesWritten;
 
-    bytesWritten = sprintf(&(data->shmPtr[data->currentPos]) , "%s", buff);
+    bytesWritten = sprintf(&(data->shmPtr[data->currentPos]), "%s", buff);
 
     if(bytesWritten > 0)
         data->currentPos += bytesWritten + 1;
 
     return bytesWritten;
-
 }
 
 //Returns qty of bytes read, error handling must be done by calling process
@@ -103,7 +103,7 @@ int shmReader(shmADT data, char * buff){
 }
 
 int unlinkData(shmADT data){
-    if(munmap(data->shmPtr, SHM_SIZE)<0 || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0)
+    if(data == NULL || munmap(data->shmPtr, SHM_SIZE)<0 || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0)
         return -1;
     free(data);
     return 0;

@@ -30,13 +30,6 @@ void replaceNewLine(char * str){
 }
 
 int main(void){
-    //desabilitamos para flushing
-    if(setvbuf(stdout, NULL, _IONBF, 0)!=0){
-        perror("setvbuf failed/n");
-    }
-
-    //hash  nombreaArchivo --> hash,nombre,pid\n
-
     char entry[TRANSFERSIZE];
     char buffer[MAX_BUFF];
     while ( fgets(entry,TRANSFERSIZE,stdin) != NULL ){

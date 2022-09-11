@@ -39,11 +39,10 @@ void parseData(information * info){
     buffer[currentPos] = 0;
 }
 
-
 // orden es shmName,semName
 int main(int argc, char *argv[]){
     information info;
-
+    printf("En ele view\n");
     if ( argc < 2){
         //entonces no tengo los datos en argv, debo parsearlos
         //se imprime shmName,semName
@@ -56,16 +55,16 @@ int main(int argc, char *argv[]){
 
     shmADT shareData= openSharedData(info.shmName, info.semName, SHM_SIZE);
     if(shareData==NULL)
-        errExit("Error when opening shared data");
+        errExitUnlink("Error when opening shared data", shareData);
 
     char md5[MD5_LENGTH],fileName[MAX_BUFF];
     int pidSlave, bytesRead;
     do {
         if(sem_wait(getSem(shareData))== ERROR)
-            errExit("error at sempahore waiting");
+            errExitUnlink("error at sempahore waiting", shareData);
         char buff[MAX_BUFF];
         if((bytesRead = shmReader(shareData, buff))==ERROR)
-            errExit("Error at trying to read from shared memory");
+            errExitUnlink("Error at trying to read from shared memory", shareData);
         if(bytesRead!=0){
             prepareData(buff, fileName, md5, &pidSlave);
             printf("File name: %s | Hash: %s | SlavePID: %d\n", fileName, md5, pidSlave);
@@ -73,8 +72,8 @@ int main(int argc, char *argv[]){
     }
     while(bytesRead != 0);
 
-
     closeData(shareData);
+    unlinkData(shareData);
 
     return 0;
 }

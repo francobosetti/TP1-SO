@@ -95,6 +95,10 @@ int getNumberOfFilesPerChild(int fileNum){
 }
 
 int main(int argc, char *argv[]){
+
+
+
+
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
     
@@ -145,6 +149,10 @@ int main(int argc, char *argv[]){
         close(communications[i].masterToSlaveFd[READPOS]);
     }
 
+
+
+
+
     int cantRegFiles;
     char **regArgV = removeNoReg(argv,&cantRegFiles, shareData);
 
@@ -180,6 +188,7 @@ int main(int argc, char *argv[]){
                     sendTaskToChild(regArgV[currentFile],&communications[i], shareData);
                     currentFile++;
                 }
+                fflush(stdout);
             }
         }
     }

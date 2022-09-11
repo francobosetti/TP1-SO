@@ -186,8 +186,7 @@ int main(int argc, char *argv[]){
 
     free(regArgV);
     fclose(resultFile);
-    //closeShm(shareData);
+    closeShm(shareData);
     //TODO el pipe no hace que corran en simultaneo, se elimina el shm antes de ejecutarse el view
-    //unlinkData(shareData);
     return 0;
 }

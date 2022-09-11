@@ -119,7 +119,6 @@ static int unlinkShmAndSem(shmADT data){
 int closeShm(shmADT data){
     if(data == NULL)
         return ERROR;
-
     if(munmap(data->shmPtr, data->shmSize) == ERROR || close(data->shmFd) == ERROR || sem_close(data->mutexSem) == ERROR){
         unlinkShmAndSem(data);
         freeShm(data);
@@ -130,7 +129,6 @@ int closeShm(shmADT data){
         unlinkShmAndSem(data);
     }
 
-    freeShm(data);
     return 0;
 }
 

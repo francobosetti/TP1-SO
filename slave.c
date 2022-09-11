@@ -1,6 +1,7 @@
 #include "lib.h"
-
+#include "shmADT.h"
 #define TRANSFERSIZE 64
+
 
 //master --> "nombreArchivo\n"
 

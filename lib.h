@@ -23,7 +23,7 @@
 #define READPOS 0
 #define WRITEPOS 1
 #define FINISHREADING 0
-#define ERROR (-1)
+
 
 void errExit(char * msg);
 void errExitUnlink(char * msg, shmADT data);

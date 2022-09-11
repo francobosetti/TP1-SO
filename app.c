@@ -7,6 +7,8 @@
 #define MAX_TASK_PER_CHILD 3
 #define MAX_SLAVE_OUTPUT 256
 #define CHILDTASKS 2
+#define MEMINC 5
+#define DEFAULTTASKNUMBER 1
 
 #define SLAVE_NAME "./slave"
 #define ANSWER_NAME "./Answers.txt"
@@ -88,6 +90,30 @@ void getData(char * buffer, int fd){
     buffer[i] = 0;
 }
 
+//TODO responsabilidad del main liberar esta funcion
+char ** removeNoReg(char ** argv, int * size){
+    char ** regArgv = NULL;
+    int j = 0;
+    for (int i = 1; argv[i] != NULL; i++){
+        if ( j % MEMINC == 0){
+            regArgv = realloc(regArgv, (MEMINC + j) * sizeof(char *) );
+        }
+        if ( isReg(argv[i]) ){
+            regArgv[j++] = argv[i];
+        }
+    }
+    regArgv = realloc(regArgv,(j + 1) * sizeof(char *));
+    regArgv[j] = NULL;
+    *size = j;
+    return regArgv;
+}
+
+
+int getNumberOfFilesPerChild(int fileNum){
+    int result = (int) ( fileNum * 0.10 / NUM_CHILDS) ;
+    return result == 0 ? DEFAULTTASKNUMBER:result;
+}
+
 
 int main(int argc, char *argv[]){
     
@@ -143,45 +169,54 @@ int main(int argc, char *argv[]){
     }
 
 
-    int cantFiles = argc - 1;
-    int cantNoRegFiles = 0;
+
+
+    int cantRegFiles;
+    char **regArgV = removeNoReg(argv,&cantRegFiles);
+
+    //calculamos la cantidad de archivos a procesar por hijo, en base a los archivos regulares que nos pasaron
+    int filesPerChild = getNumberOfFilesPerChild(cantRegFiles);
+
+    int currentFile = 0;
+
+    for ( int i = 0; i < NUM_CHILDS && regArgV[currentFile] != NULL ; i++){
+        for (int j = 0; j < filesPerChild && regArgV[currentFile] != NULL ;j++){
+            if ( regArgV[currentFile] != NULL)
+                sendTaskToChild(regArgV[currentFile++],&communications[i]);
+        }
+    }
+
+    
 
     FILE * resultFile = fopen("results.csv","w+");
     prepareHeaders(resultFile);
 
-    for ( int filesProccesed = 0, currentFile = 1; filesProccesed < cantFiles - cantNoRegFiles ;){
-        fd_set readSet, writeSet;
-        int maxfd = getMax(createReadSet(communications,&readSet),createWriteSet(communications,&writeSet));
 
-        if (select(maxfd + 1, &readSet, &writeSet,NULL,NULL) == ERROR)
+    for ( int filesProccesed = 0; filesProccesed < cantRegFiles ;){
+        fd_set readSet;
+        int maxfd = createReadSet(communications,&readSet);
+        if (select(maxfd + 1, &readSet, NULL,NULL,NULL) == ERROR)
             errExit("error while using select");
-        
-        //chequear lo de ready con EOF
-        for (int i = 0; i < NUM_CHILDS && argv[currentFile] != NULL; currentFile++, i++){
-            if (!isReg(argv[currentFile])){
-                cantNoRegFiles++;
-            } else if ( FD_ISSET(communications[i].masterToSlaveFd[WRITEPOS],&writeSet) ){
-                //si puedo escribir en este fd
-                sendTaskToChild(argv[currentFile],&communications[i]);
-            }
-        }
-
-        for ( int i = 0; i < NUM_CHILDS ; i++) {
-            if (FD_ISSET(communications[i].slaveToMasterFd[READPOS], &readSet)){
-                //si puedo leer en este fd
-                char buffer[MAX_BUFF];
-                getData(buffer, communications[i].slaveToMasterFd[READPOS]);
-                sendDataToFile(resultFile,buffer);
-                shmWriter(shareData, buffer);
+        for ( int i =0 ; i < NUM_CHILDS ; i++){
+            if ( FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet)){
+                char buffer[REGBUFFSIZE];
+                getData(buffer,communications[i].slaveToMasterFd[READPOS]);
+                shmWriter(shareData,buffer);
                 sem_post(getSem(shareData));
+                sendDataToFile(resultFile,buffer);
                 filesProccesed++;
+                if ( regArgV[currentFile] != NULL) {
+                    sendTaskToChild(regArgV[currentFile],&communications[i]);
+                    currentFile++;
+                }
             }
         }
+     
     }
 
+    free(regArgV);
     fclose(resultFile);
     //TODO el pipe no hace que corran en simultaneo, se elimina el shm antes de ejecutarse el view
     //unlinkData(shareData);
-
     return 0;
 }

@@ -156,29 +156,26 @@ int main(int argc, char *argv[]){
         if (select(maxfd + 1, &readSet, &writeSet,NULL,NULL) == ERROR)
             errExit("error while using select");
         
-
         //chequear lo de ready con EOF
         for (int i = 0; i < NUM_CHILDS && argv[currentFile] != NULL; currentFile++, i++){
-            if (!FD_ISSET(communications[i].masterToSlaveFd[WRITEPOS],&writeSet))
-                continue;
             if (!isReg(argv[currentFile])){
                 cantNoRegFiles++;
-                continue;
+            } else if ( FD_ISSET(communications[i].masterToSlaveFd[WRITEPOS],&writeSet) ){
+                //si puedo escribir en este fd
+                sendTaskToChild(argv[currentFile],&communications[i]);
             }
-            //si puedo escribir en este fd
-            sendTaskToChild(argv[currentFile],&communications[i]);
         }
 
         for ( int i = 0; i < NUM_CHILDS ; i++) {
-            if (!FD_ISSET(communications[i].slaveToMasterFd[READPOS], &readSet))
-                continue;
-            //si puedo leer en este fd
-            char buffer[MAX_BUFF];
-            getData(buffer, communications[i].slaveToMasterFd[READPOS]);
-            sendDataToFile(resultFile,buffer);
-            shmWriter(shareData, buffer);
-            sem_post(getSem(shareData));
-            filesProccesed++;
+            if (FD_ISSET(communications[i].slaveToMasterFd[READPOS], &readSet)){
+                //si puedo leer en este fd
+                char buffer[MAX_BUFF];
+                getData(buffer, communications[i].slaveToMasterFd[READPOS]);
+                sendDataToFile(resultFile,buffer);
+                shmWriter(shareData, buffer);
+                sem_post(getSem(shareData));
+                filesProccesed++;
+            }
         }
     }
 

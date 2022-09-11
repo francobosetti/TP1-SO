@@ -44,6 +44,14 @@ int createWriteSet(slaveComm * comms, fd_set * set){
     return max;
 }
 
+void sendDataToFile(FILE * fptr, char * buffer){
+    fprintf(fptr,"%s",buffer);
+}
+
+void prepareHeaders(FILE * fptr){
+    fprintf(fptr,"Hash,FileName,slavePid\n");
+}
+
 int getMax(int num1, int num2){
     return num1 > num2 ? num1:num2;
 }
@@ -138,6 +146,9 @@ int main(int argc, char *argv[]){
     int cantFiles = argc - 1;
     int cantNoRegFiles = 0;
 
+    FILE * resultFile = fopen("results.csv","w+");
+    prepareHeaders(resultFile);
+
     for ( int filesProccesed = 0, currentFile = 1; filesProccesed < cantFiles - cantNoRegFiles ;){
         fd_set readSet, writeSet;
         int maxfd = getMax(createReadSet(communications,&readSet),createWriteSet(communications,&writeSet));
@@ -164,12 +175,16 @@ int main(int argc, char *argv[]){
             //si puedo leer en este fd
             char buffer[MAX_BUFF];
             getData(buffer, communications[i].slaveToMasterFd[READPOS]);
+            sendDataToFile(resultFile,buffer);
             shmWriter(shareData, buffer);
             sem_post(getSem(shareData));
             filesProccesed++;
         }
     }
+
+    fclose(resultFile);
     //TODO el pipe no hace que corran en simultaneo, se elimina el shm antes de ejecutarse el view
     //unlinkData(shareData);
+
     return 0;
 }

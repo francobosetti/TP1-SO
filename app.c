@@ -14,6 +14,7 @@
 typedef struct slaveComm{
     int masterToSlaveFd[PIPESIZE];
     int slaveToMasterFd[PIPESIZE];
+    FILE * readStream;
 }slaveComm;
 
 //devuelve como valor de retorno el maximo fileDescriptor
@@ -55,16 +56,10 @@ void sendTaskToChild(char * fileName, slaveComm * comm, shmADT data){
     sendTask(comm,aux, data);
 }
 
-void getData(char * buffer, int fd){
+void getData(char * buffer, FILE * fptr){
     char c;
     bool foundNewLine = false;
-    int i;
-    for (i = 0; !foundNewLine && read(fd, &c, 1) > 0; ++i){
-        buffer[i] = c;
-        if ( c == '\n')
-            foundNewLine = true;
-    }
-    buffer[i] = 0;
+    fgets(buffer,TRANSFERSIZE,fptr);
 }
 
 //TODO responsabilidad del main liberar esta funcion
@@ -132,14 +127,26 @@ void createSlaves(slaveComm * communications,shmADT shareData){
         close(communications[i].slaveToMasterFd[WRITEPOS]);
         close(communications[i].masterToSlaveFd[READPOS]);
     }
+}
 
+
+void createFileStream(slaveComm * communications,shmADT shareData){
+    for ( int i = 0; i < NUM_CHILDS ; i++){
+        FILE * fdptr = fdopen(communications[i].slaveToMasterFd[READPOS],"r");
+        if ( fdptr == NULL)
+            errExitUnlink("Error creating fileStream",shareData);
+        communications[i].readStream =  fdptr;
+    }
+}
+
+void closeFileStream(slaveComm * comms){
+    for ( int i = 0; i < NUM_CHILDS ; i++){
+        fclose(comms[i].readStream);
+    }
 }
 
 
 int main(int argc, char *argv[]){
-
-
-
 
     if(argc<2)
         errExit("Application process did not recieve enough arguments");
@@ -201,7 +208,6 @@ int main(int argc, char *argv[]){
 
 
 
-
     int cantRegFiles;
     char **regArgV = removeNoReg(argv,&cantRegFiles, shareData);
 
@@ -217,6 +223,11 @@ int main(int argc, char *argv[]){
         }
     }
 
+
+    createFileStream(communications,shareData);
+
+
+
     FILE * resultFile = fopen(RESULTS_NAME,"w+");
     prepareHeaders(resultFile);
 
@@ -228,7 +239,7 @@ int main(int argc, char *argv[]){
         for ( int i =0 ; i < NUM_CHILDS ; i++){
             if ( FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet)){
                 char buffer[REGBUFFSIZE];
-                getData(buffer,communications[i].slaveToMasterFd[READPOS]);
+                getData(buffer,communications[i].readStream);
                 shmWriter(shareData,buffer);
                 sem_post(getSem(shareData));
                 sendDataToFile(resultFile,buffer);
@@ -240,7 +251,7 @@ int main(int argc, char *argv[]){
             }
         }
     }
-
+    closeFileStream(communications);
     sem_post(getSem(shareData));
     free(regArgV);
     fclose(resultFile);

@@ -99,15 +99,14 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     return sharedData;
 }
 
-// Returns a negative value if an error was encountered, app must handle it
+
 int shmWriter(shmADT data, char * buff){
     if(data == NULL || buff == NULL){
         errno=EINVAL;
-        return ERROR; //App hara el manejo de error
+        return ERROR;
     }
 
     int bytesWritten;
-
     bytesWritten = sprintf(&(data->shmPtr[data->currentPos]), "%s", buff);
 
     if(bytesWritten > 0)
@@ -116,11 +115,11 @@ int shmWriter(shmADT data, char * buff){
     return bytesWritten;
 }
 
-//Returns qty of bytes read, error handling must be done by calling process
+//Returns qty of bytes read
 int shmReader(shmADT data, char * buff){
     if(data == NULL || buff == NULL){
         errno=EINVAL;
-        return ERROR; //View hara el manejo de error
+        return ERROR;
     }
 
     int bytesRead;

@@ -41,15 +41,11 @@ void parseData(information * info){
     buffer[currentPos] = 0;
 }
 
-// orden es shmName,semName
 int main(int argc, char *argv[]){
     information info;
-    if ( argc < 2){
-        //entonces no tengo los datos en argv, debo parsearlos
-        //se imprime shmName,semName
+    if (argc < 2)
         parseData(&info);
-    } else {
-        //si tengo los datos en argv, el primero corresponde al shmName y el segundo al semName
+    else {
         strcpy(info.shmName,argv[1]);
         strcpy(info.semName,argv[2]);
     }

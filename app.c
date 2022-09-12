@@ -109,6 +109,9 @@ int main(int argc, char *argv[]){
         printf("%s,%s\n", SHM_NAME, SEM_NAME);
         
     }
+    else{
+        printf("Los parametros que tiene que ingresar en el proceso view son: %s,%s\n", SHM_NAME, SEM_NAME);
+    }
 
     //Creating the semaphore and shm
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);

@@ -9,6 +9,7 @@
 #define RESULTS_NAME "results.csv"
 #define SHM_NAME "/appshm"
 #define SEM_NAME "/sem"
+#define TASKCAPPED 10
 
 typedef struct slaveComm{
     int masterToSlaveFd[PIPESIZE];
@@ -89,40 +90,18 @@ char ** removeNoReg(char ** argv, int * size, shmADT data){
 }
 
 
-int getNumberOfFilesPerChild(int fileNum){
-    int result = (int) ( fileNum * 0.10 / NUM_CHILDS) ;
-    return result == 0 ? DEFAULTTASKNUMBER:result;
+int getMin(int num1,int num2){
+    return num1 < num2 ? num1:num2;
 }
 
-int main(int argc, char *argv[]){
+int getNumberOfFilesPerChild(int fileNum){
+    int result = (int) ( fileNum * 0.10 / NUM_CHILDS) ;
+    return result == 0 ? DEFAULTTASKNUMBER:getMin(TASKCAPPED,result);
+}
 
 
 
-
-    if(argc<2)
-        errExit("Application process did not recieve enough arguments");
-    
-    //chequeo si estoy escribiendo en un pipe
-    struct stat s;
-    fstat(STDOUT_FILENO,&s);
-    if (S_ISFIFO(s.st_mode)) {
-        printf("%s,%s\n", SHM_NAME, SEM_NAME);
-        
-    }
-    else{
-        printf("Los parametros que tiene que ingresar en el proceso view son: %s,%s\n", SHM_NAME, SEM_NAME);
-    }
-
-    //Creating the semaphore and shm
-    shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
-    
-    if(shareData==NULL)
-        errExit("Error when initiating shared data");
-    fflush(stdout);
-    sleep(2);
-    
-    slaveComm communications[NUM_CHILDS];
-
+void createSlaves(slaveComm * communications,shmADT shareData){
     //inicializacion de procesos esclavos
     for (int i = 0; i < NUM_CHILDS ; i++){
         if (pipe(communications[i].masterToSlaveFd) == ERROR)
@@ -154,6 +133,71 @@ int main(int argc, char *argv[]){
         close(communications[i].masterToSlaveFd[READPOS]);
     }
 
+}
+
+
+int main(int argc, char *argv[]){
+
+
+
+
+    if(argc<2)
+        errExit("Application process did not recieve enough arguments");
+    
+    //chequeo si estoy escribiendo en un pipe
+    struct stat s;
+    fstat(STDOUT_FILENO,&s);
+    if (S_ISFIFO(s.st_mode)) {
+        printf("%s,%s\n", SHM_NAME, SEM_NAME);
+        
+    }
+    else{
+        printf("Los parametros que tiene que ingresar en el proceso view son: %s,%s\n", SHM_NAME, SEM_NAME);
+    }
+
+    //Creating the semaphore and shm
+    shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
+    
+    if(shareData==NULL)
+        errExit("Error when initiating shared data");
+    fflush(stdout);
+    sleep(2);
+    
+    slaveComm communications[NUM_CHILDS];
+    createSlaves(communications,shareData);
+
+/*
+    //inicializacion de procesos esclavos
+    for (int i = 0; i < NUM_CHILDS ; i++){
+        if (pipe(communications[i].masterToSlaveFd) == ERROR)
+            errExitUnlink("Error in master to slave pipe creation", shareData);
+        if ( pipe(communications[i].slaveToMasterFd) == ERROR)
+            errExitUnlink("Error in slave to master pipe creation", shareData);
+
+        pid_t  myPid =  fork();
+        if(myPid == ERROR)
+            errExitUnlink("Fork could not be executed", shareData);
+        if (myPid == 0){
+            //tenemos que dejar el pipe bien hecho
+            close(communications[i].masterToSlaveFd[WRITEPOS]);//slave no escribe en masterToSlave
+            close(communications[i].slaveToMasterFd[READPOS]);//slave no lee en slaveToMaster
+
+            dup2(communications[i].slaveToMasterFd[WRITEPOS],STDOUT_FILENO);//slave escribe a entrada de slaveToMaster
+            close(communications[i].slaveToMasterFd[WRITEPOS]);
+
+            dup2(communications[i].masterToSlaveFd[READPOS],STDIN_FILENO);
+            close(communications[i].masterToSlaveFd[READPOS]);
+
+            char * args[] = {NULL};
+            int retVal = execv(SLAVE_NAME,args);
+            if (retVal == ERROR)
+                errExitUnlink("Error in execv syscall", shareData);
+        }
+        //master no escribe en slaveToMaster y no lee en masterToSlave
+        close(communications[i].slaveToMasterFd[WRITEPOS]);
+        close(communications[i].masterToSlaveFd[READPOS]);
+    }
+    */
 
 
 
@@ -163,9 +207,9 @@ int main(int argc, char *argv[]){
 
     //calculamos la cantidad de archivos a procesar por hijo, en base a los archivos regulares que nos pasaron
     int filesPerChild = getNumberOfFilesPerChild(cantRegFiles);
-
     int currentFile = 0;
 
+    
     for ( int i = 0; i < NUM_CHILDS && regArgV[currentFile] != NULL ; i++){
         for (int j = 0; j < filesPerChild && regArgV[currentFile] != NULL ;j++){
             if ( regArgV[currentFile] != NULL)
@@ -201,6 +245,5 @@ int main(int argc, char *argv[]){
     free(regArgV);
     fclose(resultFile);
     closeShm(shareData);
-    //TODO el pipe no hace que corran en simultaneo, se elimina el shm antes de ejecutarse el view
     return 0;
 }

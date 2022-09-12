@@ -79,7 +79,7 @@ char ** removeNoReg(char ** argv, int * size, shmADT data){
             }
             regArgv = temp;
         }
-        if (isReg(argv[i]))
+        if (regArgv != NULL && isReg(argv[i]))
             regArgv[j++] = argv[i];
     }
     temp = realloc(regArgv,(j + 1) * sizeof(char *));
@@ -151,6 +151,8 @@ void closeFileStream(slaveComm * comms){
 void processFiles(char ** argv,slaveComm * communications,FILE * resultFile,shmADT shareData){
     int cantRegFiles;
     char ** regArgV = removeNoReg(argv,&cantRegFiles, shareData);
+    if(regArgV == NULL)
+        errExitUnlink("Error in removing non-file names from vector", shareData);
 
     //calculamos la cantidad de archivos a procesar por hijo, en base a los archivos regulares que nos pasaron (ver criterio en informe)
     int filesPerChild = getNumberOfFilesPerChild(cantRegFiles);

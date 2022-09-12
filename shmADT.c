@@ -1,7 +1,3 @@
-//TODO manejo de errores sin exit, utilizar valores de retorno y errno.h
-// https://www.thegeekstuff.com/2010/10/linux-error-codes/ --> setear errExits con valores de ERRNO correspondientes
-// y devolver null en caso de error
-
 #include "shmADT.h"
 
 struct shmCDT{
@@ -30,20 +26,24 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     //SHM CREATION
     sharedData->shmFd=shm_open(shmName, O_CREAT | O_RDWR | O_EXCL, S_IWUSR | S_IRUSR );
     if(sharedData->shmFd==ERROR){
+        errno=ENOMEM;
         return NULL;
     }
 
     if(ftruncate(sharedData->shmFd,sharedData->shmSize)==ERROR){
+        errno=ENOMEM;
         return NULL;
     }
 
     sharedData->shmPtr = mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(sharedData->shmPtr == MAP_FAILED){
+        errno=ENOMEM;
         return NULL;
     }
     //SEM CREATION
     sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 0);
     if(sharedData->mutexSem==SEM_FAILED){
+        errno=ENOMEM;
         return NULL;
     }
 
@@ -59,10 +59,12 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     //SHM CREATION
     sharedData->shmFd=shm_open(shmName, O_RDWR, S_IWUSR | S_IRUSR );
     if(sharedData->shmFd==ERROR){
+        errno=ENOMEM;
         return NULL;
     }
     char *shmPtr = mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(shmPtr == MAP_FAILED){
+        errno=ENOMEM;
         return NULL;
     }
     sharedData->shmPtr=shmPtr;
@@ -70,6 +72,7 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     //SEM CREATION
     sharedData->mutexSem = sem_open(semName, 0);
     if(sharedData->mutexSem==SEM_FAILED){
+        errno=ENOMEM;
         return NULL;
     }
     return sharedData;
@@ -77,8 +80,10 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
 
 // Returns a negative value if an error was encountered, app must handle it
 int shmWriter(shmADT data, char * buff){
-    if(data == NULL || buff == NULL)
-        return -1; //App hara el manejo de error
+    if(data == NULL || buff == NULL){
+        errno=EINVAL;
+        return ERROR; //App hara el manejo de error
+    }
 
     int bytesWritten;
 
@@ -92,8 +97,11 @@ int shmWriter(shmADT data, char * buff){
 
 //Returns qty of bytes read, error handling must be done by calling process
 int shmReader(shmADT data, char * buff){
-    if(data == NULL || buff == NULL)
-        return -1; //View hara el manejo de error
+    if(data == NULL || buff == NULL){
+        errno=EINVAL;
+        return ERROR; //View hara el manejo de error
+    }
+
 
     int bytesRead;
 
@@ -110,24 +118,30 @@ void freeShm(shmADT data){
 }
 
 static int unlinkShmAndSem(shmADT data){
-    if(data == NULL || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0)
-        return -1;
+    if(data == NULL || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0){
+        errno=EINVAL;
+        return ERROR;
+    }
+
     free(data);
     return 0;
 }
 
 int closeShm(shmADT data){
-    if(data == NULL)
-        return ERROR;
-    if(munmap(data->shmPtr, data->shmSize) == ERROR || close(data->shmFd) == ERROR || sem_close(data->mutexSem) == ERROR){
-        unlinkShmAndSem(data);
-        freeShm(data);
+    if(data == NULL){
+        errno=EINVAL;
         return ERROR;
     }
 
-    if(data->creator){
+    if(munmap(data->shmPtr, data->shmSize) == ERROR || close(data->shmFd) == ERROR || sem_close(data->mutexSem) == ERROR){
         unlinkShmAndSem(data);
+        freeShm(data);
+        errno=EINVAL;
+        return ERROR;
     }
+
+    if(data->creator)
+        return unlinkShmAndSem(data);
 
     return 0;
 }

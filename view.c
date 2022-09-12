@@ -71,7 +71,8 @@ int main(int argc, char *argv[]){
     }
     while(bytesRead != 0);
 
-    closeShm(shareData);
+    if(closeShm(shareData)==ERROR)
+        errExit("Error when closing/unlinking");
 
     return 0;
 }

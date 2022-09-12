@@ -9,7 +9,7 @@
 #define RESULTS_NAME "results.csv"
 #define SHM_NAME "/appshm"
 #define SEM_NAME "/sem"
-#define TASKCAPPED 10
+#define TASKCAPPED 5
 
 typedef struct slaveComm{
     int masterToSlaveFd[PIPESIZE];
@@ -145,6 +145,54 @@ void closeFileStream(slaveComm * comms){
     }
 }
 
+//se encarga del procesamiento de datos, envia datos al proceso view,
+void processFiles(char ** argv,slaveComm * communications,FILE * resultFile,shmADT shareData){
+    int cantRegFiles;
+    char **regArgV = removeNoReg(argv,&cantRegFiles, shareData);
+    //calculamos la cantidad de archivos a procesar por hijo, en base a los archivos regulares que nos pasaron
+    int filesPerChild = getNumberOfFilesPerChild(cantRegFiles);
+    int currentFile = 0;
+
+
+
+
+    for ( int i = 0; i < NUM_CHILDS && regArgV[currentFile] != NULL ; i++){
+        for (int j = 0; j < filesPerChild && regArgV[currentFile] != NULL ;j++){
+            if ( regArgV[currentFile] != NULL)
+                sendTaskToChild(regArgV[currentFile++],&communications[i], shareData);
+        }
+    }
+
+
+    for ( int filesProccesed = 0; filesProccesed < cantRegFiles ;){
+        fd_set readSet;
+        int maxfd = createReadSet(communications,&readSet);
+        if (select(maxfd + 1, &readSet, NULL,NULL,NULL) == ERROR)
+            errExitUnlink("Error while using select", shareData);
+        for ( int i =0 ; i < NUM_CHILDS ; i++){
+            if ( FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet)){
+                char buffer[REGBUFFSIZE];
+                getData(buffer,communications[i].readStream);
+                if(shmWriter(shareData,buffer)==ERROR)
+                    errExitUnlink("Error when writing to shm", shareData);
+                sem_post(getSem(shareData));
+                sendDataToFile(resultFile,buffer);
+                filesProccesed++;
+                if ( regArgV[currentFile] != NULL) {
+                    sendTaskToChild(regArgV[currentFile],&communications[i], shareData);
+                    currentFile++;
+                }
+            }
+        }
+    }
+
+    free(regArgV);
+    sem_post(getSem(shareData));
+
+}
+
+
+
 
 int main(int argc, char *argv[]){
 
@@ -173,49 +221,24 @@ int main(int argc, char *argv[]){
     slaveComm communications[NUM_CHILDS];
     createSlaves(communications,shareData);
 
+
+
+    createFileStream(communications,shareData);
+    FILE * resultFile = fopen(RESULTS_NAME,"w+");
+    prepareHeaders(resultFile);
+
+    processFiles(argv,communications,resultFile,shareData);
+
 /*
-    //inicializacion de procesos esclavos
-    for (int i = 0; i < NUM_CHILDS ; i++){
-        if (pipe(communications[i].masterToSlaveFd) == ERROR)
-            errExitUnlink("Error in master to slave pipe creation", shareData);
-        if ( pipe(communications[i].slaveToMasterFd) == ERROR)
-            errExitUnlink("Error in slave to master pipe creation", shareData);
-
-        pid_t  myPid =  fork();
-        if(myPid == ERROR)
-            errExitUnlink("Fork could not be executed", shareData);
-        if (myPid == 0){
-            //tenemos que dejar el pipe bien hecho
-            close(communications[i].masterToSlaveFd[WRITEPOS]);//slave no escribe en masterToSlave
-            close(communications[i].slaveToMasterFd[READPOS]);//slave no lee en slaveToMaster
-
-            dup2(communications[i].slaveToMasterFd[WRITEPOS],STDOUT_FILENO);//slave escribe a entrada de slaveToMaster
-            close(communications[i].slaveToMasterFd[WRITEPOS]);
-
-            dup2(communications[i].masterToSlaveFd[READPOS],STDIN_FILENO);
-            close(communications[i].masterToSlaveFd[READPOS]);
-
-            char * args[] = {NULL};
-            int retVal = execv(SLAVE_NAME,args);
-            if (retVal == ERROR)
-                errExitUnlink("Error in execv syscall", shareData);
-        }
-        //master no escribe en slaveToMaster y no lee en masterToSlave
-        close(communications[i].slaveToMasterFd[WRITEPOS]);
-        close(communications[i].masterToSlaveFd[READPOS]);
-    }
-    */
-
-
-
     int cantRegFiles;
     char **regArgV = removeNoReg(argv,&cantRegFiles, shareData);
-
     //calculamos la cantidad de archivos a procesar por hijo, en base a los archivos regulares que nos pasaron
     int filesPerChild = getNumberOfFilesPerChild(cantRegFiles);
     int currentFile = 0;
 
-    
+
+
+
     for ( int i = 0; i < NUM_CHILDS && regArgV[currentFile] != NULL ; i++){
         for (int j = 0; j < filesPerChild && regArgV[currentFile] != NULL ;j++){
             if ( regArgV[currentFile] != NULL)
@@ -223,13 +246,6 @@ int main(int argc, char *argv[]){
         }
     }
 
-
-    createFileStream(communications,shareData);
-
-
-
-    FILE * resultFile = fopen(RESULTS_NAME,"w+");
-    prepareHeaders(resultFile);
 
     for ( int filesProccesed = 0; filesProccesed < cantRegFiles ;){
         fd_set readSet;
@@ -240,7 +256,8 @@ int main(int argc, char *argv[]){
             if ( FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet)){
                 char buffer[REGBUFFSIZE];
                 getData(buffer,communications[i].readStream);
-                shmWriter(shareData,buffer);
+                if(shmWriter(shareData,buffer)==ERROR)
+                    errExitUnlink("Error when writing to shm", shareData);
                 sem_post(getSem(shareData));
                 sendDataToFile(resultFile,buffer);
                 filesProccesed++;
@@ -251,10 +268,15 @@ int main(int argc, char *argv[]){
             }
         }
     }
-    closeFileStream(communications);
-    sem_post(getSem(shareData));
+
     free(regArgV);
+    sem_post(getSem(shareData));
+    */
+
     fclose(resultFile);
-    closeShm(shareData);
+    closeFileStream(communications);
+    if(closeShm(shareData)==ERROR)
+        errExit("Error when closing/unlinking shm");
+
     return 0;
 }

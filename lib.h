@@ -1,7 +1,6 @@
 #ifndef TP1_SO_LIB_H
 #define TP1_SO_LIB_H
 
-//Here there will be all the libraries needed for all the files
 #define _BSD_SOURCE
 
 #include <stdlib.h>
@@ -9,12 +8,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+
 //libraries for select
 #include <sys/select.h>
 #include "shmADT.h"
-//macros to be used by all .c files
 
-
+//Macros
 #define MAX_BUFF 4096
 #define MD5_LENGTH 32
 #define TRANSFERSIZE 64

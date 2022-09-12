@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 
 //libraries for shared memory
 #include <sys/stat.h>        /* For mode constants */

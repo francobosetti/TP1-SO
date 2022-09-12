@@ -1,27 +1,47 @@
-CC=gcc
-GCCFLAGS = -g -Wall -std=c99
-GCCLIBS = -lrt -lpthread
-FILES =  shmADT.c lib.c
-MAIN_FILES = app view slave
-#CHECK = check
+GCC = gcc
+GCCFLAGS = -g -Wall -std='c99' -lpthread -lrt
 
-all: $(MAIN_FILES) #$(CHECK)
+EXECUTABLES := app slave view
 
-$(MAIN_FILES): %: %.c
-	@$(CC) $(GCCFLAGS) $(FILES) -o $@ $< $(GCCLIBS)
+OUTPUT = results.csv
 
-.PHONY: clean
+EXEC = App Slave View
+
+APPLICATION_C = app.c
+
+SLAVE_C = slave.c
+
+VIEW_C = view.c
+
+SHMADT_C = shmADT.c
+
+LIB_C = lib.c
+
+all: $(EXEC)
+
+Slave:
+	@$(GCC) $(GCCFLAGS) $(SHMADT_C) $(SLAVE_C) $(LIB_C) -o slave
+	@echo "Slave successfully compiled"
+
+App:
+	@$(GCC) $(GCCFLAGS) $(SHMADT_C) $(LIB_C) $(APPLICATION_C) -o app
+	@echo "Solve successfully compiled"
+
+View:
+	@$(GCC) $(GCCFLAGS) $(SHMADT_C) $(LIB_C) $(VIEW_C) -o view
+	@echo "View successfully compiled"
+
 clean:
-	@rm -rf $(MAIN_FILES)
-	#@rm -rf $(CHECK)
+	@rm -rf $(EXECUTABLES)
+	@rm -rf $(OUTPUT)
+	@rm -rf check
 
 check:
 	@mkdir check
-	@cppcheck --quiet --enable=all --force --inconclusive . 2> ./check/cppout.txt
 
 	@pvs-studio-analyzer trace -- make
 	@pvs-studio-analyzer analyze
-	@plog-converter -a '64:1,2,3;GA:1,2,3;OP:1,2,3' -t tasklist -o ./check/report.tasks ./PVS-Studio.log
+	@plog-converter -a '64:1,2,3;GA:1,2,3;OP:1,2,3' -t tasklist -o report.tasks PVS-Studio.log
 
 	@mv strace_out check
 	@rm PVS-Studio.log

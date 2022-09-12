@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "lib.h"
 #include "shmADT.h"
 
@@ -56,8 +58,10 @@ void sendTaskToChild(char * fileName, slaveComm * comm, shmADT data){
     sendTask(comm,aux, data);
 }
 
-void getData(char * buffer, FILE * fptr){
-    fgets(buffer,TRANSFERSIZE,fptr);
+void getData(char * buffer, FILE * fptr, shmADT data){
+    if(fgets(buffer,TRANSFERSIZE,fptr)==NULL)
+        errExitUnlink("Error when reading from slave", data);
+        
 }
 
 //TODO responsabilidad del main liberar esta funcion
@@ -170,7 +174,7 @@ void processFiles(char ** argv,slaveComm * communications,FILE * resultFile,shmA
         for ( int i =0 ; i < NUM_CHILDS ; i++){
             if ( FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet)){
                 char buffer[REGBUFFSIZE];
-                getData(buffer,communications[i].readStream);
+                getData(buffer,communications[i].readStream, shareData);
                 if(shmWriter(shareData,buffer)==ERROR)
                     errExitUnlink("Error when writing to shm", shareData);
                 sem_post(getSem(shareData));

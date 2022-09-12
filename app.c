@@ -64,15 +64,19 @@ void getData(char * buffer, FILE * fptr, shmADT data){
         
 }
 
-//TODO responsabilidad del main liberar esta funcion
 char ** removeNoReg(char ** argv, int * size, shmADT data){
     char ** regArgv = NULL;
+    char ** temp;
     int j = 0;
     for (int i = 1; argv[i] != NULL; i++){
         if ( j % MEMINC == 0){
-            regArgv = realloc(regArgv, (MEMINC + j) * sizeof(char *) );
-            if (regArgv == NULL)
+            temp = realloc(regArgv, (MEMINC + j) * sizeof(char *) );
+            if (temp == NULL) {
+                free(regArgv);
                 errExitUnlink("failed realloc", data);
+            }
+            regArgv = temp;
+
         }
         if ( isReg(argv[i]) ){
             regArgv[j++] = argv[i];
@@ -214,6 +218,8 @@ int main(int argc, char *argv[]){
 
     //Creating the semaphore and shm
     shmADT shareData = initiateSharedData(SHM_NAME, SEM_NAME, SHM_SIZE);
+    if ( shareData == NULL)
+        errExit("Could not allocate data for process view");
     
     if(shareData==NULL)
         errExit("Error when initiating shared data");
@@ -231,49 +237,6 @@ int main(int argc, char *argv[]){
 
     processFiles(argv,communications,resultFile,shareData);
 
-/*
-    int cantRegFiles;
-    char **regArgV = removeNoReg(argv,&cantRegFiles, shareData);
-    //calculamos la cantidad de archivos a procesar por hijo, en base a los archivos regulares que nos pasaron
-    int filesPerChild = getNumberOfFilesPerChild(cantRegFiles);
-    int currentFile = 0;
-
-
-
-
-    for ( int i = 0; i < NUM_CHILDS && regArgV[currentFile] != NULL ; i++){
-        for (int j = 0; j < filesPerChild && regArgV[currentFile] != NULL ;j++){
-            if ( regArgV[currentFile] != NULL)
-                sendTaskToChild(regArgV[currentFile++],&communications[i], shareData);
-        }
-    }
-
-
-    for ( int filesProccesed = 0; filesProccesed < cantRegFiles ;){
-        fd_set readSet;
-        int maxfd = createReadSet(communications,&readSet);
-        if (select(maxfd + 1, &readSet, NULL,NULL,NULL) == ERROR)
-            errExitUnlink("Error while using select", shareData);
-        for ( int i =0 ; i < NUM_CHILDS ; i++){
-            if ( FD_ISSET(communications[i].slaveToMasterFd[READPOS],&readSet)){
-                char buffer[REGBUFFSIZE];
-                getData(buffer,communications[i].readStream);
-                if(shmWriter(shareData,buffer)==ERROR)
-                    errExitUnlink("Error when writing to shm", shareData);
-                sem_post(getSem(shareData));
-                sendDataToFile(resultFile,buffer);
-                filesProccesed++;
-                if ( regArgV[currentFile] != NULL) {
-                    sendTaskToChild(regArgV[currentFile],&communications[i], shareData);
-                    currentFile++;
-                }
-            }
-        }
-    }
-
-    free(regArgV);
-    sem_post(getSem(shareData));
-    */
 
     fclose(resultFile);
     closeFileStream(communications);

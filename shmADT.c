@@ -15,6 +15,12 @@ struct shmCDT{
 
 shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     shmADT sharedData = malloc(sizeof(struct shmCDT));
+
+    if(sharedData == NULL){
+        errno = ENOMEM;
+        return NULL;
+    }
+
     sharedData->shmName = shmName;
     sharedData->semName = semName;
     sharedData->shmSize = shmSize;
@@ -29,23 +35,27 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
     sharedData->shmFd=shm_open(shmName, O_CREAT | O_RDWR | O_EXCL, S_IWUSR | S_IRUSR );
     if(sharedData->shmFd==ERROR){
         errno=ENOMEM;
+        free(sharedData);
         return NULL;
     }
 
     if(ftruncate(sharedData->shmFd,sharedData->shmSize)==ERROR){
         errno=ENOMEM;
+        free(sharedData);
         return NULL;
     }
 
     sharedData->shmPtr = mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(sharedData->shmPtr == MAP_FAILED){
         errno=ENOMEM;
+        free(sharedData);
         return NULL;
     }
     //SEM CREATION
     sharedData->mutexSem = sem_open(semName, O_CREAT |  O_EXCL ,  S_IRUSR| S_IWUSR | S_IROTH| S_IWOTH, 0);
     if(sharedData->mutexSem==SEM_FAILED){
         errno=ENOMEM;
+        free(sharedData);
         return NULL;
     }
 
@@ -54,6 +64,12 @@ shmADT initiateSharedData(char * shmName, char * semName, int shmSize) {
 
 shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     shmADT sharedData = malloc(sizeof(struct shmCDT));
+
+    if(sharedData == NULL){
+        errno = ENOMEM;
+        return NULL;
+    }
+
     sharedData->shmName = shmName;
     sharedData->semName = semName;
     sharedData->shmSize=shmSize;
@@ -62,11 +78,13 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     sharedData->shmFd=shm_open(shmName, O_RDWR, S_IWUSR | S_IRUSR );
     if(sharedData->shmFd==ERROR){
         errno=ENOMEM;
+        freeShm(sharedData);
         return NULL;
     }
     char *shmPtr = mmap(NULL, sharedData->shmSize, PROT_READ|PROT_WRITE, MAP_SHARED, sharedData->shmFd, 0);
     if(shmPtr == MAP_FAILED){
         errno=ENOMEM;
+        freeShm(sharedData);
         return NULL;
     }
     sharedData->shmPtr=shmPtr;
@@ -75,6 +93,7 @@ shmADT openSharedData(char * shmName, char * semName, int shmSize) {
     sharedData->mutexSem = sem_open(semName, 0);
     if(sharedData->mutexSem==SEM_FAILED){
         errno=ENOMEM;
+        freeShm(sharedData);
         return NULL;
     }
     return sharedData;
@@ -104,9 +123,7 @@ int shmReader(shmADT data, char * buff){
         return ERROR; //View hara el manejo de error
     }
 
-
     int bytesRead;
-
     bytesRead = sprintf(buff, "%s", &(data->shmPtr[data->currentPos]));
 
     if(bytesRead > 0)
@@ -120,12 +137,12 @@ void freeShm(shmADT data){
 }
 
 static int unlinkShmAndSem(shmADT data){
-    if(data == NULL || shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0){
+    if(shm_unlink(data->shmName)<0 || sem_unlink(data->semName)<0){
         errno=EINVAL;
+        freeShm(data);
         return ERROR;
     }
-
-    free(data);
+    freeShm(data);
     return 0;
 }
 
@@ -137,7 +154,6 @@ int closeShm(shmADT data){
 
     if(munmap(data->shmPtr, data->shmSize) == ERROR || close(data->shmFd) == ERROR || sem_close(data->mutexSem) == ERROR){
         unlinkShmAndSem(data);
-        freeShm(data);
         errno=EINVAL;
         return ERROR;
     }

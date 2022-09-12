@@ -32,4 +32,5 @@ sem_t *getSem(shmADT data);
 int closeShm(shmADT data);
 int shmWriter(shmADT data, char *buff);
 int shmReader(shmADT data, char * buff);
+void freeShm(shmADT data);
 #endif //TP1_SO_SHMADT_H

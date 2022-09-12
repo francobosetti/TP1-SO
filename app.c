@@ -79,7 +79,7 @@ char ** removeNoReg(char ** argv, int * size, shmADT data){
             }
             regArgv = temp;
         }
-        if (regArgv != NULL && isReg(argv[i]))
+        if (isReg(argv[i]))
             regArgv[j++] = argv[i];
     }
     temp = realloc(regArgv,(j + 1) * sizeof(char *));
@@ -148,7 +148,7 @@ void closeFileStream(slaveComm * comms){
     }
 }
 
-void processFiles(char ** argv,slaveComm * communications,FILE * resultFile,shmADT shareData){
+void processFiles(char ** argv, slaveComm * communications, FILE * resultFile, shmADT shareData){
     int cantRegFiles;
     char ** regArgV = removeNoReg(argv,&cantRegFiles, shareData);
     if(regArgV == NULL)

@@ -57,8 +57,6 @@ void sendTaskToChild(char * fileName, slaveComm * comm, shmADT data){
 }
 
 void getData(char * buffer, FILE * fptr){
-    char c;
-    bool foundNewLine = false;
     fgets(buffer,TRANSFERSIZE,fptr);
 }
 

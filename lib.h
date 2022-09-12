@@ -2,6 +2,7 @@
 #define TP1_SO_LIB_H
 
 #define _BSD_SOURCE
+#define _XOPEN_SOURCE
 
 #include <stdlib.h>
 #include <stdio.h>

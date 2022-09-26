@@ -114,6 +114,13 @@ void createSlaves(slaveComm * communications,shmADT shareData){
         if(myPid == ERROR)
             errExitUnlink("Fork could not be executed", shareData);
         if (myPid == 0){
+        
+            for( int j = 0 ; j < i ; j++) {
+                //Correcion, unicamente habia que cerrar los 2 fd que le falto al master
+                close(communications[j].masterToSlaveFd[WRITEPOS]);
+                close(communications[j].slaveToMasterFd[READPOS]);
+            }
+            
             close(communications[i].masterToSlaveFd[WRITEPOS]);
             close(communications[i].slaveToMasterFd[READPOS]);
 
@@ -130,7 +137,10 @@ void createSlaves(slaveComm * communications,shmADT shareData){
         }
         close(communications[i].slaveToMasterFd[WRITEPOS]);
         close(communications[i].masterToSlaveFd[READPOS]);
+
     }
+
+
 }
 
 void createFileStream(slaveComm * communications,shmADT shareData){

@@ -2,7 +2,7 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "lib.h"
 #include "shmADT.h"
-#define TRANSFERSIZE 64
+
 
 void prepareData(char *buffer, char * fileName){
     char aux[TRANSFERSIZE];
